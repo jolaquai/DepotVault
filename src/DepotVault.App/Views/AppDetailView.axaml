@@ -65,6 +65,7 @@
           <DataGridTextColumn Header="Date" Binding="{Binding Date}" x:DataType="vm:HistoryItemViewModel" IsReadOnly="True" Width="170" />
           <DataGridTextColumn Header="Depot" Binding="{Binding DepotId}" x:DataType="vm:HistoryItemViewModel" IsReadOnly="True" Width="90" />
           <DataGridTextColumn Header="Manifest ID" Binding="{Binding ManifestId}" x:DataType="vm:HistoryItemViewModel" IsReadOnly="True" Width="215" />
+          <DataGridTextColumn Header="Branch" Binding="{Binding Branch}" x:DataType="vm:HistoryItemViewModel" IsReadOnly="True" Width="100" />
           <DataGridTextColumn Header="Label" Binding="{Binding Label}" x:DataType="vm:HistoryItemViewModel" Width="200" />
           <DataGridCheckBoxColumn Header="Downloaded" Binding="{Binding IsDownloaded}" x:DataType="vm:HistoryItemViewModel" IsReadOnly="True" Width="100" />
           <DataGridCheckBoxColumn Header="Purged" Binding="{Binding Unavailable}" x:DataType="vm:HistoryItemViewModel" IsReadOnly="True" Width="80" />

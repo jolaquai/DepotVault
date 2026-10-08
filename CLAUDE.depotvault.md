@@ -48,10 +48,10 @@ Written 2026-10-08 when work moved from the user's Windows machine to a cloud se
 ## Status
 
 - **State:** implemented; open items are user-side only (step 22 interactive sign-in check, step 25 tutorial screenshots)
-- **Current step:** 34 - Manifest branches (blocked on a SteamDB sample from the user)
+- **Current step:** none (all steps done except the step 22 interactive check)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** cec2da1 (parent of HEAD)
+- **Last synced commit:** c0263f1 (parent of HEAD)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -369,10 +369,11 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Progress:** depot list got a header row and a Size column (current public manifest size, `maxsize` fallback); platform moved under the name so long names stay readable at the default window width. Verified with UiSnap `pages` (seed depots now carry sizes).
 - **Commit:** `show depot sizes`
 
-### 34. Manifest branches `[!]`
+### 34. Manifest branches `[x]`
 
 - **Do:** parse the branch SteamDB shows per manifest from the pasted rows, show it in the history grid and the import preview, and warn in the import dialog when a paste mixes branches.
-- **Blocked:** needs a real copied sample of SteamDB's manifest table with the branch column (format unknown; no SteamDB access from the cloud). Asked the user.
+- **Format (user sample):** SteamDB rows are `date<TAB>relative<TAB>manifestId[ branch]<TAB>`; no branch text means `public` (SteamDB omits the default branch, confirmed by the user). Plain ID lists have no branch (unknown, never warns).
+- **Progress:** `ImportRow.Branch` / `ManifestHistoryEntry.Branch`; re-importing an existing manifest fills a missing branch. Branch column in the import preview and history grid; warning when the rows that will be kept span several branches; "Download selected manifest" prefers the same branch when picking the other depots' manifests. Parser test uses the user's sample; UiSnap `import` checks the warning appears for a mixed paste and clears after unticking.
 - **Commit:** `add manifest branches`
 
 ## Risks

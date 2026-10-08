@@ -188,6 +188,23 @@ internal static class Scenarios
                 pump();
                 Console.WriteLine($"Depot {vm.DepotIdText} ({vm.SelectedDepot}); {vm.Summary} {vm.WarningText}");
                 Check(vm.DepotIdText == "480001" && vm.Rows.Count == 5 && vm.WarningText is null, "paste detects depot and previews 5 rows");
+                Check(vm.WarningText is null && vm.Rows.Where(r => r.Row.Status != DepotVault.Core.Import.ImportStatus.Invalid).All(r => r.Branch is "public" or ""), "single-branch paste has no warning");
+                var keepPaste = vm.PasteText;
+                vm.PasteText = """
+                    https://steamdb.info/depot/480001/manifests/
+                    8 October 2026 – 06:56:13 UTC	13 hours ago	7858560538903071442	
+                    2 October 2026 – 20:59:16 UTC	6 days ago	4414572937642724539 local	
+                    22 September 2026 – 03:00:17 UTC	17 days ago	5846939894323649224
+                    """;
+                pump();
+                Console.WriteLine($"Mixed: {string.Join(", ", vm.Rows.Select(r => r.Branch))} | {vm.WarningText}");
+                Check(vm.WarningText?.Contains("different branches (public, local)") == true, "mixed-branch paste warns");
+                save(dlg, "import-mixed-branches");
+                vm.Rows.First(r => r.Branch == "local").Include = false;
+                pump();
+                Check(vm.WarningText is null, "unticking the other branch clears the warning");
+                vm.PasteText = keepPaste;
+                pump();
                 vm.Rows.First(r => r.ManifestId == "6666666666666666666").Include = false;
                 save(dlg, "import-preview");
                 vm.ImportCommand.Execute(null);

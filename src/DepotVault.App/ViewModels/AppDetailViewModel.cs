@@ -34,6 +34,7 @@ public partial class HistoryItemViewModel(ManifestHistoryEntry entry, Action cha
     public uint DepotId => Entry.DepotId;
     public ulong ManifestId => Entry.ManifestId;
     public string Date => Format.Date(Entry.DateUtc);
+    public string Branch => Entry.Branch ?? "";
     public bool Unavailable => Entry.Unavailable;
 
     [ObservableProperty]
@@ -322,7 +323,9 @@ public partial class AppDetailViewModel : ObservableObject, IDisposable
         var missing = new List<uint>();
         foreach (var d in Depots.Where(d => d.IsSelected && d.DepotId != pick.DepotId))
         {
-            var match = _app.History.Where(h => h.DepotId == d.DepotId && !h.Unavailable && (pick.DateUtc == default || h.DateUtc <= pick.DateUtc)).MaxBy(h => h.DateUtc);
+            var candidates = _app.History.Where(h => h.DepotId == d.DepotId && !h.Unavailable && (pick.DateUtc == default || h.DateUtc <= pick.DateUtc)).ToList();
+            var sameBranch = pick.Branch is null ? null : candidates.Where(h => string.Equals(h.Branch, pick.Branch, StringComparison.OrdinalIgnoreCase)).MaxBy(h => h.DateUtc);
+            var match = sameBranch ?? candidates.MaxBy(h => h.DateUtc);
             if (match is null)
                 missing.Add(d.DepotId);
             else

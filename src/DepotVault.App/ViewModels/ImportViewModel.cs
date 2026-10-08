@@ -20,6 +20,7 @@ public partial class ImportRowViewModel(ImportRow row, Action changed) : Observa
     public string Date => Row.Status == ImportStatus.Invalid ? "" : Format.Date(Row.DateUtc);
     public string ManifestId => Row.ManifestId == 0 ? "" : Row.ManifestId.ToString(CultureInfo.InvariantCulture);
     public string Raw => Row.Raw;
+    public string Branch => Row.Branch ?? "";
     public bool CanInclude => Row.Status == ImportStatus.New;
 
     public string Status => Row.Status switch
@@ -148,10 +149,15 @@ public partial class ImportViewModel : ObservableObject
         var removing = ComputeRemovals().Count;
         Summary = Rows.Count == 0 ? null : $"{included} of {fresh} new manifest(s) selected, {dup} already imported, {invalid} line(s) not recognized."
             + (KeepOnly && removing > 0 ? $" {removing} other imported manifest(s) of depot {depot} will be removed, together with their downloads." : "");
-        WarningText = Rows.Count == 0 ? null
-            : depot == 0 ? "Pick the depot these manifests belong to (or paste the SteamDB page URL along with the rows)."
-            : Depots.Count > 0 && SelectedDepot is null ? $"Depot {depot} is not in this game's depot list. Check that you copied the right depot."
-            : null;
+        var warnings = new List<string>(2);
+        if (Rows.Count > 0 && depot == 0)
+            warnings.Add("Pick the depot these manifests belong to (or paste the SteamDB page URL along with the rows).");
+        else if (Rows.Count > 0 && Depots.Count > 0 && SelectedDepot is null)
+            warnings.Add($"Depot {depot} is not in this game's depot list. Check that you copied the right depot.");
+        var branches = Rows.Where(r => r.Row.Branch is not null && (r.Row.Status == ImportStatus.Duplicate || (r.CanInclude && r.Include))).Select(r => r.Row.Branch).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (branches.Count > 1)
+            warnings.Add($"This paste mixes manifests from different branches ({string.Join(", ", branches)}). Builds of different branches usually don't belong together; untick the rows you don't want or paste one branch at a time.");
+        WarningText = warnings.Count == 0 ? null : string.Join(Environment.NewLine, warnings);
         ImportCommand.NotifyCanExecuteChanged();
     }
 

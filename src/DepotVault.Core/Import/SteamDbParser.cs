@@ -10,7 +10,7 @@ public enum ImportStatus
     Invalid,
 }
 
-public sealed record ImportRow(int Line, ulong ManifestId, DateTime DateUtc, ImportStatus Status, string Raw);
+public sealed record ImportRow(int Line, ulong ManifestId, DateTime DateUtc, ImportStatus Status, string Raw, string Branch = null);
 
 public sealed class SteamDbParseResult
 {
@@ -21,6 +21,8 @@ public sealed class SteamDbParseResult
 
 public static class SteamDbParser
 {
+    public const string DefaultBranch = "public";
+
     private static readonly string[] DateFormats =
     [
         "d MMMM yyyy - HH:mm:ss",
@@ -64,7 +66,7 @@ public static class SteamDbParser
             }
             var date = ParseDate(line, start, length);
             var status = known.Contains(id) || !seen.Add(id) ? ImportStatus.Duplicate : ImportStatus.New;
-            result.Rows.Add(new ImportRow(lineNo, id, date, status, line.ToString()));
+            result.Rows.Add(new ImportRow(lineNo, id, date, status, line.ToString(), ExtractBranch(line[(start + length)..], date != default)));
         }
         return result;
     }
@@ -76,9 +78,11 @@ public static class SteamDbParser
         var added = 0;
         foreach (var r in rows)
         {
+            if (r.Status == ImportStatus.Duplicate && r.Branch is not null && app.History.Find(h => h.DepotId == depotId && h.ManifestId == r.ManifestId) is { Branch: null } existing)
+                existing.Branch = r.Branch;
             if (r.Status != ImportStatus.New || !have.Add(r.ManifestId))
                 continue;
-            app.History.Add(new ManifestHistoryEntry { DepotId = depotId, ManifestId = r.ManifestId, DateUtc = r.DateUtc });
+            app.History.Add(new ManifestHistoryEntry { DepotId = depotId, ManifestId = r.ManifestId, DateUtc = r.DateUtc, Branch = r.Branch });
             added++;
         }
         app.History.Sort(static (a, b) => b.DateUtc.CompareTo(a.DateUtc));
@@ -122,6 +126,25 @@ public static class SteamDbParser
         }
         return default;
     }
+
+    private static string ExtractBranch(ReadOnlySpan<char> rest, bool dated)
+    {
+        Span<char> buf = rest.Length <= 512 ? stackalloc char[rest.Length] : new char[rest.Length];
+        foreach (var range in rest.Split('\t'))
+        {
+            var seg = rest[range].Trim();
+            if (seg.IsEmpty || TryParseDate(seg, buf, out _))
+                continue;
+            var end = seg.IndexOfAny(' ', '\u00A0');
+            var word = end < 0 ? seg : seg[..end];
+            if (word.Length is > 0 and <= 64 && !word.ContainsAnyExcept(BranchChars))
+                return word.ToString();
+            break;
+        }
+        return dated ? DefaultBranch : null;
+    }
+
+    private static readonly System.Buffers.SearchValues<char> BranchChars = System.Buffers.SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-.");
 
     private static int LongestDigitRun(ReadOnlySpan<char> line)
     {

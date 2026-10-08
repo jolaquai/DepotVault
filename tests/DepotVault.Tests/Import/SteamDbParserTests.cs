@@ -53,4 +53,26 @@ public class SteamDbParserTests
         Assert.Equal([222222222222222222ul, 111111111111111111, 333333333333333333], app.History.Select(h => h.ManifestId));
         Assert.Equal(0, SteamDbParser.Commit(app, 5, r.Rows));
     }
+
+    [Fact]
+    public void ReadsBranchesFromSteamDbRows()
+    {
+        var paste = "8 October 2026 – 06:56:13 UTC\t13 hours ago\t7858560538903071442\t\n"
+            + "2 October 2026 – 20:59:16 UTC\t6 days ago\t4414572937642724539 local\t\n"
+            + "1 October 2026 – 11:49:07 UTC\t7 days ago\t426889136175453125 local\t\n"
+            + "22 September 2026 – 03:00:17 UTC\t17 days ago\t6087551716114811127 local\t\n"
+            + "22 September 2026 – 03:00:17 UTC\t17 days ago\t5846939894323649224\n"
+            + "3333333333333333333\n"
+            + "2023-06-01 12:34:56\t4444444444444444444\tbeta_2\n";
+        var r = SteamDbParser.Parse(paste);
+        Assert.Equal([7858560538903071442ul, 4414572937642724539, 426889136175453125, 6087551716114811127, 5846939894323649224, 3333333333333333333, 4444444444444444444], r.Rows.Select(x => x.ManifestId));
+        Assert.Equal(["public", "local", "local", "local", "public", null, "beta_2"], r.Rows.Select(x => x.Branch));
+        Assert.Equal(new DateTime(2026, 10, 8, 6, 56, 13, DateTimeKind.Utc), r.Rows[0].DateUtc);
+
+        var app = new AppRecord();
+        app.History.Add(new ManifestHistoryEntry { DepotId = 1, ManifestId = 7858560538903071442 });
+        Assert.Equal(6, SteamDbParser.Commit(app, 1, SteamDbParser.Parse(paste, app.History.Select(h => h.ManifestId)).Rows));
+        Assert.Equal("public", app.History.Single(h => h.ManifestId == 7858560538903071442).Branch);
+        Assert.Equal("local", app.History.Single(h => h.ManifestId == 4414572937642724539).Branch);
+    }
 }

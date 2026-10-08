@@ -26,6 +26,7 @@ public sealed class ManifestHistoryEntry
     public ulong ManifestId { get; set; }
     public DateTime DateUtc { get; set; }
     public string Label { get; set; }
+    public string Branch { get; set; }
     public bool Unavailable { get; set; }
 }
 
