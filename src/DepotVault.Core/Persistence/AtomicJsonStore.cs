@@ -16,12 +16,12 @@ public sealed class AtomicJsonStore<T> : IAsyncDisposable, IDisposable where T :
     private long _pendingSince;
     private int _writeCount;
 
-    public AtomicJsonStore(string path, JsonTypeInfo<T> typeInfo, IJsonMigrator migrator = null, TimeSpan? debounce = null)
+    public AtomicJsonStore(string path, JsonTypeInfo<T> typeInfo, IJsonMigrator migrator = null, TimeSpan debounce = default)
     {
         Path = path;
         _typeInfo = typeInfo;
         _migrator = migrator;
-        _debounce = debounce ?? TimeSpan.FromMilliseconds(500);
+        _debounce = debounce > TimeSpan.Zero ? debounce : TimeSpan.FromMilliseconds(500);
         _timer = new Timer(static s => ((AtomicJsonStore<T>)s).FlushPendingCore(), this, Timeout.Infinite, Timeout.Infinite);
     }
 

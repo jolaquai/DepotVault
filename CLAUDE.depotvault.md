@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 16 - Snapshot + self-heal
+- **Current step:** 17 - Optional read-only protection
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 9b76fe3 (parent of the step commit)
+- **Last synced commit:** d8c741e (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -198,7 +198,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet test --solution DepotVault.slnx`
 - **Commit:** `add mutable file scanner`
 
-### 16. Snapshot + self-heal `[ ]`
+### 16. Snapshot + self-heal `[x]`
 
 - **Files:** `src/DepotVault.Core/Library/IntegrityChecker.cs`, `Healer.cs`, tests
 - **Do:** at link time store `(size, LastWriteTimeUtc, linkKind)` per shared file in `state.json`. Stat-only scan via `FileSystemEnumerable` on app start (background), before switch, and before using a file as a dedupe source. On mismatch hash-verify against manifest SHA-1. If diverged: the active version keeps the modified inode unshared; other versions get pristine data from an intact sibling (different inode, same hash) or re-fetched chunks. Auto-add diverged paths to the per-app exclusion list, **except** files marked Share (skip entirely) and surface newly diverged files as candidates for the step 15 review.
@@ -318,6 +318,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 12: library roots are owned by `Settings.LibraryRoots` (single source); `library.json` holds apps (name, active/adopted version) and versions. Root suggestion is `<steam library>/DepotVault` (inside the library folder, guaranteed same volume). `LibraryTargetResolver` (download target + previous-version chunk diff) added here.
 - 2026-10-08 - Step 14: manual check used the same manifest (228988/6645201662696499616) for two library versions via `dvcli lib-download`; second version deduped 29,212,173 bytes with 0 downloaded. Share policy is injected into `LibraryTargetResolver` via `SharePolicy` (enabled flag, never-share predicate, isolate predicate); step 15 provides the per-app predicates. `PathGlob` (simple `*`/`?` matcher) added for exclusion globs.
 - 2026-10-08 - Step 15: decisions are `MutableRule { Pattern, Decision }` on `AppRecord` (`Unreviewed` = enum default); explicit Share overrides per-app exclusions and global globs. `MutableFileScanner.BuildPolicy` produces the `SharePolicy` for the download resolver.
+- 2026-10-08 - Step 16: the stat scan re-stats each file via `FileInfo` on Windows because NTFS directory entries of sibling hardlink names keep stale size/mtime. Diverged files in non-active versions are restored with reflink-or-copy (never hardlink) since they become excluded. `AtomicJsonStore` debounce param is now a plain `TimeSpan` (no nullable).
 
 ## Open questions
 
