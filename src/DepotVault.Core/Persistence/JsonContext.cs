@@ -8,4 +8,5 @@ namespace DepotVault.Core.Persistence;
 [JsonSerializable(typeof(Library.AppRecord))]
 [JsonSerializable(typeof(Download.QueueDocument))]
 [JsonSerializable(typeof(Library.VersionState))]
+[JsonSerializable(typeof(Library.LibraryDocument))]
 public sealed partial class JsonContext : JsonSerializerContext;

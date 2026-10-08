@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 12 - Library model
+- **Current step:** 13 - Content index
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 6d42930 (parent of the step commit)
+- **Last synced commit:** 832f61b (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -170,7 +170,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet test --solution DepotVault.slnx`
 - **Commit:** `add linking primitives`
 
-### 12. Library model `[ ]`
+### 12. Library model `[x]`
 
 - **Files:** `src/DepotVault.Core/Library/LibraryIndex.cs`, `VersionRecord.cs`, `LibraryRoots.cs`, tests
 - **Do:** `library.json` with roots, apps, versions (id = short stable id, label, date, manifests, active flag). Root suggestion next to each Steam library folder. Merge multi-depot downloads into one version folder. "Unique size" per version computed from link counts.
@@ -315,6 +315,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 9: `state.json` model (`VersionState`, `FileSnapshot`, `LinkKind`) created here instead of step 16 since the pipeline writes it. `Sha1Hash` 20-byte struct created here (shared with step 13). `AtomicJsonStore.ScheduleSave(Func<T>)` added so debounced saves serialize a snapshot.
 - 2026-10-08 - Step 10: resume bitmaps live on `DownloadJob.Resume` (persisted via queue.json); `ResumeTracker` lives in `Download/ResumeState.cs`. Debounced saves got a max-wait (4x debounce) so continuous chunk progress cannot starve persistence.
 - 2026-10-08 - Step 11: reflink support on Windows detected via `FSCTL_GET_INTEGRITY_INFORMATION` (fails on non-ReFS) and integrity settings are mirrored onto the clone target. Linux file identity uses `statx` (arch-independent layout). Fallback logic lives in `Linker` + `LinkRules` in `VolumeCapabilities.cs`. Dev box has no ReFS/Dev Drive, so the reflink test is skipped here.
+- 2026-10-08 - Step 12: library roots are owned by `Settings.LibraryRoots` (single source); `library.json` holds apps (name, active/adopted version) and versions. Root suggestion is `<steam library>/DepotVault` (inside the library folder, guaranteed same volume). `LibraryTargetResolver` (download target + previous-version chunk diff) added here.
 
 ## Open questions
 
