@@ -53,7 +53,7 @@ Written 2026-10-08 when work moved from the user's Windows machine to a cloud se
 - **Current step:** 25 - Import dialog + tutorial (step 22 interactive check pending)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 12f3290 (parent of HEAD)
+- **Last synced commit:** 4f358a1 (parent of HEAD)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -290,6 +290,14 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** run app, start a download, observe live progress and pause/resume.
 - **Commit:** `add downloads screen`
 
+### 24a. Linux test pass `[x]`
+
+- **Files:** `src/DepotVault.Core/Library/LibraryIndex.cs`, `tests/DepotVault.Tests/Library/MutableFileScannerTests.cs`
+- **Do:** first run of the suite on Linux; fix real failures.
+- **Verify:** `dotnet test --solution DepotVault.slnx`
+- **Progress:** 75 passed, 2 skipped (DPAPI Windows-only; reflink: cloud volume is ext4, no btrfs/xfs tooling to build a loop volume).
+- **Commit:** `fix linux test failures`
+
 ### 25. Import dialog + tutorial `[ ]`
 
 - **Files:** `src/DepotVault.App/Views/ImportDialog.axaml`, `TutorialDialog.axaml`, `Assets/tutorial/*`
@@ -354,6 +362,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 21: added `Core/Vault.cs` composition root (all services + queue/runner/resolver wiring) and `Core/Logging/FileLoggerProvider.cs`; DI registers `Vault` and page VMs. Shell is `Views/ShellWindow.axaml`. GUI verification uses `tools/DepotVault.UiSnap` (Avalonia headless + Skia, seeds a temp data dir, renders pages/scenarios to PNG) because the desktop must not be driven while the user is using it; `dotnet run --project tools/DepotVault.UiSnap -- <outDir> [dataDir] [scenario]`.
 - 2026-10-08 - Step 22 follow-up: QR login is the default tab and starts when the dialog opens (no password typed into DepotVault); a browser login cannot replace it because Steam web logins only yield web-audience tokens, while CM logon needs a client refresh token. Step 23: no app icons in v1 (would need CDN image fetching); apps are added from installed Steam games or by App ID. History download picks, per selected depot, the newest imported manifest not newer than the chosen row. Switch uses a placeholder `ISwitchPromptsFactory` that declines prompts until step 27. Verified with `UiSnap pages` and `UiSnap library-actions`.
 - 2026-10-08 - Step 24: verified headlessly with `UiSnap downloads-live` against real Steam (depot 228988, 3 MiB/s cap): live progress rendered, pause kept 4 resume bitmaps at 11.2 MiB, resume reused 11.7 MB and wrote 17.5 MB, version complete.
+- 2026-10-08 - Step 24a added: first Linux run. Version delete now clears read-only on all platforms (Linux kept the shared inode read-only for the surviving sibling); scanner test looked up manifest names with Windows separators. Linux `FICLONE` path still unexecuted (no reflink-capable volume in the cloud).
 
 ## Open questions
 

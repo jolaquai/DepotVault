@@ -20,8 +20,8 @@ public class MutableFileScannerTests
             (@"saves\slot1.bin", FakeDepot.Bytes("s")),
             (@"readme.txt", FakeDepot.Bytes("hi")),
             (@"assets\big.pak", FakeDepot.Bytes("p", 3000)));
-        m.Files.Single(f => f.FileName == @"bin\game.exe").Flags |= EDepotFileFlag.Executable;
-        m.Files.Single(f => f.FileName == @"assets\big.pak").Flags |= EDepotFileFlag.UserConfig;
+        m.Files.Single(f => f.FileName == P(@"bin\game.exe")).Flags |= EDepotFileFlag.Executable;
+        m.Files.Single(f => f.FileName == P(@"assets\big.pak")).Flags |= EDepotFileFlag.UserConfig;
 
         var c = MutableFileScanner.Scan(m.Files, modifiedSinceLink: rel => rel == P(@"bin\game.exe")).ToDictionary(x => x.RelPath);
 

@@ -224,8 +224,7 @@ public sealed class LibraryIndex : IDisposable
             LinkStrategy.RemoveDirectoryLink(dir);
             return;
         }
-        if (OperatingSystem.IsWindows())
-            ReadOnlyProtection.Remove(dir);
+        ReadOnlyProtection.Remove(dir);
         Directory.Delete(dir, true);
     }
 
