@@ -1,0 +1,147 @@
+"appinfo"
+{
+	"appid"		"480000"
+	"common"
+	{
+		"name"		"Sample Game"
+		"type"		"Game"
+		"oslist"		"windows,linux"
+	}
+	"config"
+	{
+		"installdir"		"Sample Game"
+		"launch"
+		{
+			"0"
+			{
+				"executable"		"game.exe"
+			}
+		}
+	}
+	"depots"
+	{
+		"228983"
+		{
+			"config"
+			{
+				"oslist"		"windows"
+			}
+			"depotfromapp"		"228980"
+			"sharedinstall"		"1"
+		}
+		"480001"
+		{
+			"name"		"Sample Game Content"
+			"maxsize"		"5368709120"
+			"manifests"
+			{
+				"public"
+				{
+					"gid"		"1234567890123456789"
+					"size"		"4294967296"
+					"download"		"2147483648"
+				}
+			}
+		}
+		"480002"
+		{
+			"name"		"Sample Game Windows Binaries"
+			"config"
+			{
+				"oslist"		"windows"
+				"osarch"		"64"
+			}
+			"manifests"
+			{
+				"public"		"2345678901234567890"
+			}
+		}
+		"480003"
+		{
+			"name"		"Sample Game Linux Binaries"
+			"config"
+			{
+				"oslist"		"linux"
+			}
+			"manifests"
+			{
+				"public"
+				{
+					"gid"		"3456789012345678901"
+					"size"		"1000"
+				}
+			}
+		}
+		"480004"
+		{
+			"name"		"Sample Game German"
+			"config"
+			{
+				"language"		"german"
+			}
+			"manifests"
+			{
+				"public"
+				{
+					"gid"		"4567890123456789012"
+				}
+			}
+		}
+		"480005"
+		{
+			"name"		"Sample Game Low Violence"
+			"config"
+			{
+				"lowviolence"		"1"
+			}
+			"manifests"
+			{
+				"public"
+				{
+					"gid"		"5678901234567890123"
+				}
+			}
+		}
+		"480006"
+		{
+			"name"		"Sample DLC"
+			"dlcappid"		"480100"
+			"manifests"
+			{
+				"public"
+				{
+					"gid"		"6789012345678901234"
+				}
+			}
+		}
+		"480007"
+		{
+			"name"		"Sample Game 32-bit"
+			"config"
+			{
+				"oslist"		"windows"
+				"osarch"		"32"
+			}
+			"manifests"
+			{
+				"public"
+				{
+					"gid"		"7890123456789012345"
+				}
+			}
+		}
+		"branches"
+		{
+			"public"
+			{
+				"buildid"		"9876543"
+				"timeupdated"		"1700000000"
+			}
+			"beta"
+			{
+				"buildid"		"9876600"
+			}
+		}
+		"baselanguages"		"english,german"
+	}
+}

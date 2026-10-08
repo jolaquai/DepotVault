@@ -5,4 +5,5 @@ namespace DepotVault.Core.Persistence;
 
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, WriteIndented = true, UseStringEnumConverter = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(Settings))]
+[JsonSerializable(typeof(Library.AppRecord))]
 public sealed partial class JsonContext : JsonSerializerContext;

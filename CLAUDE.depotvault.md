@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 5 - Steam session + auth (manual verify pending), continuing with 6
+- **Current step:** 7 - Depot keys, manifest codes, CDN pool, manifest fetch (step 5 manual verify pending)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 72d3126 (parent of the step commit)
+- **Last synced commit:** 5fbc5f1 (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -126,7 +126,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Progress:** code + 	ools/DepotVault.Cli harness (dvcli login|login-qr|whoami|logout) built. Manual check pending: user runs dvcli login once, then dvcli whoami must log in via saved token.
 - **Commit:** `add steam session and auth`
 
-### 6. PICS depot metadata `[ ]`
+### 6. PICS depot metadata `[x]`
 
 - **Files:** `src/DepotVault.Core/Steam/DepotMetadataService.cs`, `src/DepotVault.Core/Library/AppRecord.cs`, tests for the parser
 - **Do:** `PICSGetAccessTokens` -> `PICSGetProductInfo(app)`; parse `depots` KeyValues: depot ids, names, `config` (oslist, language, osarch), `sharedinstall`/`depotfromapp`, `maxsize`, `manifests/public` (shown as "current" only). Cache in `apps/<appid>.json` with timestamp; refresh on demand. Default depot selection filters by OS/arch/language of the target install, user-overridable. Parser unit-tested against a captured KeyValues fixture.
