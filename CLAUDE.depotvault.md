@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 8 - Download job model + queue (manual verify pending for 5, 7)
+- **Current step:** 9 - Chunk pipeline (manual verify pending for 5, 7)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** f09af61 (parent of the step commit)
+- **Last synced commit:** a571c17 (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -141,7 +141,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Progress:** code done, unit tests for `CdnPool` pass; `dvcli app <appid>` and `dvcli manifest <appid> <depotid> [manifestid]` added. Manual check pending (needs saved token): `dvcli manifest` must print file count > 0 after reload.
 - **Commit:** `add manifest fetch and cdn pool`
 
-### 8. Download job model + queue `[ ]`
+### 8. Download job model + queue `[x]`
 
 - **Files:** `src/DepotVault.Core/Download/DownloadJob.cs`, `DownloadQueue.cs`, `Counters.cs`, tests
 - **Do:** `DownloadJob { AppId, DepotId, ManifestId, TargetVersionId, State(Queued/Running/Paused/Done/Failed/Canceled), counters }`. Queue concurrency = `MaxConcurrentJobs`. Linked CTS per job. Counters via `Interlocked` (downloaded, written, deduped). Persist to `queue.json` debounced.

@@ -12,7 +12,7 @@ public sealed class AtomicJsonStore<T> : IAsyncDisposable, IDisposable where T :
     private readonly SemaphoreSlim _writeLock = new(1, 1);
     private readonly Lock _pendingLock = new();
     private readonly Timer _timer;
-    private T _pending;
+    private Func<T> _pending;
     private int _writeCount;
 
     public AtomicJsonStore(string path, JsonTypeInfo<T> typeInfo, IJsonMigrator migrator = null, TimeSpan? debounce = null)
@@ -68,11 +68,13 @@ public sealed class AtomicJsonStore<T> : IAsyncDisposable, IDisposable where T :
         finally { _writeLock.Release(); }
     }
 
-    public void ScheduleSave(T value)
+    public void ScheduleSave(T value) => ScheduleSave(() => value);
+
+    public void ScheduleSave(Func<T> snapshot)
     {
         lock (_pendingLock)
         {
-            _pending = value;
+            _pending = snapshot;
             _timer.Change(_debounce, Timeout.InfiniteTimeSpan);
         }
     }
@@ -90,16 +92,16 @@ public sealed class AtomicJsonStore<T> : IAsyncDisposable, IDisposable where T :
 
     private void FlushPendingCore()
     {
-        T value;
+        Func<T> snapshot;
         lock (_pendingLock)
         {
-            value = _pending;
+            snapshot = _pending;
             _pending = null;
         }
-        if (value is null)
+        if (snapshot is null)
             return;
         _writeLock.Wait();
-        try { WriteCore(value); }
+        try { WriteCore(snapshot()); }
         finally { _writeLock.Release(); }
     }
 
