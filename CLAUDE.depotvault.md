@@ -12,7 +12,7 @@ You are resuming work described by this file. This file is the single source of 
 4. Work the first step that is not `[x]`. One step at a time.
 5. **Every step ends with exactly one commit that contains both the code change and the update to this file.** They are never committed separately. This is what makes the file trustworthy.
 6. Commit messages: one terse line, imperative, lowercase, no body, no trailing period. Example: `add token cache to auth handler`. No attribution lines or trailers.
-7. `git commit` only. **Never** `git push`, `git commit --amend`, `git rebase`, or `git reset --hard` unless explicitly told to. Stage by naming each path explicitly; never `git add -A`, `.`, `-u` or globs.
+7. `git commit` only. **Never** `git push`, `git commit --amend`, `git rebase`, or `git reset --hard` unless explicitly told to. Exception: in a cloud session (ephemeral container) push `main` to `origin` at the end of the session; never on the user's local machine. Stage by naming each path explicitly; never `git add -A`, `.`, `-u` or globs.
 8. Never mark a step `[x]` before its **Verify** command has actually run and passed. If it fails, the step stays `[~]` and the failure goes in **Deviations**.
 9. If reality diverges from the plan (a step is wrong, impossible, or unnecessary), amend the steps here and log it in **Deviations** in the same commit. Never silently deviate.
 10. If a turn ends mid-step, the step stays `[~]` with a `Progress:` line describing exactly where it stopped and what is left. Commit whatever is coherent; if nothing is coherent, still update `Progress:` and commit only this file.
@@ -51,7 +51,7 @@ Written 2026-10-08 when work moved from the user's Windows machine to a cloud se
 - **Current step:** none (all steps done except the step 22 interactive check)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 410a853 (parent of HEAD)
+- **Last synced commit:** a2b6513 (parent of HEAD)
 - **Last updated:** 2026-10-08
 
 ## Goal
