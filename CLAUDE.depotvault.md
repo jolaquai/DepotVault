@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 18 - Steam install discovery + ACF/VDF
+- **Current step:** 19 - Switcher
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 1f5581c (parent of the step commit)
+- **Last synced commit:** 901258f (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -212,7 +212,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet test --solution DepotVault.slnx`
 - **Commit:** `add read-only protection`
 
-### 18. Steam install discovery + ACF/VDF `[ ]`
+### 18. Steam install discovery + ACF/VDF `[x]`
 
 - **Files:** `src/DepotVault.Core/SteamInstall/SteamLocator.cs`, `AcfFile.cs`, tests with fixture `.acf`/`libraryfolders.vdf`
 - **Do:** Windows `HKCU\Software\Valve\Steam\SteamPath`; Linux `~/.steam/steam`, `~/.local/share/Steam`, Flatpak `~/.var/app/com.valvesoftware.Steam/.local/share/Steam`. Parse `libraryfolders.vdf` (SteamKit2 `KeyValue` text reader) -> libraries -> `appmanifest_<appid>.acf` (`installdir`, `buildid`, `InstalledDepots`, `AutoUpdateBehavior`, `StateFlags`). ACF writer that patches only target keys and round-trips the rest.
@@ -320,6 +320,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 15: decisions are `MutableRule { Pattern, Decision }` on `AppRecord` (`Unreviewed` = enum default); explicit Share overrides per-app exclusions and global globs. `MutableFileScanner.BuildPolicy` produces the `SharePolicy` for the download resolver.
 - 2026-10-08 - Step 16: the stat scan re-stats each file via `FileInfo` on Windows because NTFS directory entries of sibling hardlink names keep stale size/mtime. Diverged files in non-active versions are restored with reflink-or-copy (never hardlink) since they become excluded. `AtomicJsonStore` debounce param is now a plain `TimeSpan` (no nullable).
 - 2026-10-08 - Step 17: protection applies to the inode, so clearing it on version delete also unprotects siblings until the next `Apply`. `FileUtil.ForceDelete` used wherever DepotVault replaces files.
+- 2026-10-08 - Step 18: ACF patching uses an own span-preserving `VdfDocument` (edits value spans in place, inserts missing keys with sibling indentation) since SteamKit2 `KeyValue` re-serializes the whole file; `libraryfolders.vdf` still uses `KeyValue`. Verified read-only against the real install: 16 ACFs round-trip byte-exact.
 
 ## Open questions
 

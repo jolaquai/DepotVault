@@ -1,0 +1,33 @@
+"AppState"
+{
+	"appid"		"480000"
+	"universe"		"1"
+	"LauncherPath"		"C:\\Program Files (x86)\\Steam\\steam.exe"
+	"name"		"Sample Game"
+	"StateFlags"		"4"
+	"installdir"		"Sample Game"
+	"LastUpdated"		"1700000000"
+	"SizeOnDisk"		"4294967296"
+	"buildid"		"9876543"
+	"LastOwner"		"76561198000000000"
+	"AutoUpdateBehavior"		"0"
+	"AllowOtherDownloadsWhileRunning"		"0"
+	"ScheduledAutoUpdate"		"0"
+	"TargetBuildID"		"9876543"
+	"InstalledDepots"
+	{
+		"480001"
+		{
+			"manifest"		"1234567890123456789"
+			"size"		"4294967296"
+		}
+	}
+	"UserConfig"
+	{
+		"language"		"english"
+	}
+	"MountedConfig"
+	{
+		"language"		"english"
+	}
+}

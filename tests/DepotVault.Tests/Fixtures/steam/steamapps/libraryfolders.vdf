@@ -1,0 +1,21 @@
+"libraryfolders"
+{
+	"contentstatsid"		"-123"
+	"0"
+	{
+		"path"		"STEAMROOT"
+		"label"		""
+		"apps"
+		{
+			"228980"		"1000"
+		}
+	}
+	"1"
+	{
+		"path"		"LIB2"
+		"apps"
+		{
+			"480000"		"4294967296"
+		}
+	}
+}
