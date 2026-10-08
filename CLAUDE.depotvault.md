@@ -43,17 +43,17 @@ Written 2026-10-08 when work moved from the user's Windows machine to a cloud se
 - `AppDetailViewModel` raises `MutableReviewRequested` (step 28) and `SwitchFailed` (step 27); nothing subscribes yet. Wire them like `ImportRequested`: subscribed in `LibraryViewModel.OnSelectedAppChanged`, dialogs created by the `AppDialogs` coordinator (`Services/AppDialogs.cs`).
 - Step 27 replaces the placeholder `DeclineSwitchPrompts` (`src/DepotVault.App/Services/SwitchPrompts.cs`, registered in `App.axaml.cs`) with real dialogs implementing `ISwitchPrompts` (Steam-running wait, copy consent with remember-my-choice).
 - Step 25 tutorial screenshots: deferred to the user (local). `TutorialViewModel` loads `Assets/tutorial/step1.png`..`step4.png` if present; just drop the files in.
-- Step 26: settings UI binds to `Vault.Settings.Current` and must call `SettingsStore.Save()`; theme changes already apply live via `Settings.Changed` in `App.axaml.cs`. Library roots live only in `Settings.LibraryRoots`.
+- Settings UI (step 26) reloads from `Vault.Settings.Current` on page activation, so a remembered copy choice written by the step 27 dialog shows up there without extra wiring.
 - Step 29: when a job fails with `ManifestUnavailableException`, mark the matching `AppRecord.History` entry `Unavailable` (jobs only carry `Error` text today; add an error kind). `AppRecord.ForceStrategy` already works in the switcher and needs UI.
 - Core composition root is `src/DepotVault.Core/Vault.cs`; UI gets everything through it via DI.
 
 ## Status
 
 - **State:** in-progress
-- **Current step:** 26 - Settings screen (step 22 interactive check pending)
+- **Current step:** 27 - Copy-fallback, Steam-running, switch-failure dialogs (step 22 interactive check pending)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 6c674df (parent of HEAD)
+- **Last synced commit:** 8ceedd0 (parent of HEAD)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -306,11 +306,12 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Progress:** verified with `UiSnap import`: tutorial pages render, "don't show again" persists; import opened from app detail, depot detected from the pasted URL (480001), preview showed 3 new / 1 duplicate / 1 invalid, one row unticked, 2 imported and persisted to `apps/480000.json`, history grid refreshed. Screenshots pending (user, local).
 - **Commit:** `add import dialog and tutorial`
 
-### 26. Settings screen `[ ]`
+### 26. Settings screen `[x]`
 
-- **Files:** `src/DepotVault.App/Views/SettingsView.axaml`, `ViewModels/SettingsViewModel.cs`
+- **Files:** `src/DepotVault.App/Views/SettingsView.axaml`, `ViewModels/SettingsViewModel.cs`, `src/DepotVault.Core/Vault.cs`
 - **Do:** all settings from step 3, including library roots, global exclusion globs, copy fallback, read-only protection, ACF lock, integrity-on-startup, theme.
 - **Verify:** run app, change settings, restart, persisted.
+- **Progress:** verified with `UiSnap settings`: page renders, every setting changed through the VM, removing a root that still holds versions is refused, adding/removing an empty root works, read-only toggle runs over the library, a fresh `SettingsStore` reloads all changed values.
 - **Commit:** `add settings screen`
 
 ### 27. Copy-fallback, Steam-running, switch-failure dialogs `[ ]`
@@ -365,6 +366,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 24: verified headlessly with `UiSnap downloads-live` against real Steam (depot 228988, 3 MiB/s cap): live progress rendered, pause kept 4 resume bitmaps at 11.2 MiB, resume reused 11.7 MB and wrote 17.5 MB, version complete.
 - 2026-10-08 - Step 24a added: first Linux run. Version delete now clears read-only on all platforms (Linux kept the shared inode read-only for the surviving sibling); scanner test looked up manifest names with Windows separators. Linux `FICLONE` path still unexecuted (no reflink-capable volume in the cloud).
 - 2026-10-08 - Step 25: tutorial ships text-only (user's call: no SteamDB screenshots from the cloud; they add `Assets/tutorial/step1..4.png` locally, loaded automatically when present). Dialogs are created by a new `AppDialogs` coordinator (single import dialog at a time; tutorial auto-opens over the import dialog unless "don't show again" is set). Import dialog takes a depot from the pasted SteamDB URL, the app's depot list, or a typed depot ID; rows can be unticked. Library empty state and Help page link to the tutorial. UiSnap scenario `import` added.
+- 2026-10-08 - Step 26: settings apply immediately (no Save button). Toggling read-only protection applies/removes it across all versions (`Vault.ApplyReadOnlyProtection`); toggling ACF lock re-locks/unlocks the ACF of every switched (non-adopted active) app (`Vault.ApplyAcfLock`). A library root can only be removed while no version lives in it (`Vault.RemoveRoot`); Steam-library suggestions are offered with one-click add. "Show walkthrough when importing" is the inverse of `TutorialDontShowAgain`. UiSnap `Seed` now registers its root in `settings.json` like a real download would; UiSnap scenario `settings` added.
 
 ## Open questions
 

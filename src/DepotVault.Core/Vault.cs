@@ -99,6 +99,43 @@ public sealed class Vault : IAsyncDisposable, IDisposable
         Settings.Save();
     }
 
+    public int CountVersionsIn(string root)
+    {
+        var norm = LibraryRoots.Normalize(root);
+        return Library.Versions.Count(v => v.Root is not null && LibraryRoots.PathComparer.Equals(LibraryRoots.Normalize(v.Root), norm));
+    }
+
+    public bool RemoveRoot(string root)
+    {
+        if (CountVersionsIn(root) > 0)
+            return false;
+        var norm = LibraryRoots.Normalize(root);
+        if (Settings.Current.LibraryRoots.RemoveAll(r => LibraryRoots.PathComparer.Equals(LibraryRoots.Normalize(r), norm)) > 0)
+            Settings.Save();
+        return true;
+    }
+
+    public int ApplyReadOnlyProtection()
+    {
+        var count = 0;
+        foreach (var v in Library.Versions)
+            count += ReadOnly.Enabled ? ReadOnly.Apply(v) : ReadOnly.Remove(v);
+        return count;
+    }
+
+    public int ApplyAcfLock()
+    {
+        var count = 0;
+        foreach (var a in Library.Apps)
+        {
+            if (a.ActiveVersionId is null || a.ActiveVersionId == a.AdoptedVersionId || Locator?.FindApp(a.AppId) is not { } installed || !File.Exists(installed.AcfPath))
+                continue;
+            FileUtil.SetReadOnly(installed.AcfPath, Settings.Current.AcfLock);
+            count++;
+        }
+        return count;
+    }
+
     public VersionRecord EnqueueVersion(uint appId, IReadOnlyList<(uint DepotId, ulong ManifestId)> manifests, string root = null, string label = null, DateTime manifestDateUtc = default)
     {
         var existing = Library.FindVersionWith(appId, manifests);

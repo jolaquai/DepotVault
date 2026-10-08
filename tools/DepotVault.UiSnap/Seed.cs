@@ -37,5 +37,9 @@ internal static class Seed
         File.WriteAllBytes(Path.Combine(lib.GetVersionDir(v2), "data.pak"), new byte[3 << 20]);
         lib.SetActive(480000, v2.Id);
         lib.Flush();
+        using var settings = new SettingsStore(paths);
+        settings.Current.LibraryRoots.Add(LibraryRoots.Normalize(root));
+        settings.Save();
+        settings.Flush();
     }
 }

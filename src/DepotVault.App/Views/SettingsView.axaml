@@ -3,5 +3,88 @@
              xmlns:vm="using:DepotVault.App.ViewModels"
              x:Class="DepotVault.App.Views.SettingsView"
              x:DataType="vm:SettingsViewModel">
-  <TextBlock Classes="h1" Text="{Binding Title}" />
+  <UserControl.Styles>
+    <Style Selector="TextBlock.hint">
+      <Setter Property="Opacity" Value="0.7" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="Margin" Value="28,0,0,4" />
+    </Style>
+  </UserControl.Styles>
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Spacing="10" MaxWidth="820" HorizontalAlignment="Left" Margin="0,0,16,16">
+      <TextBlock Classes="h1" Text="{Binding Title}" />
+      <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" IsVisible="{Binding StatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+      <TextBlock Classes="h2" Text="Library folders" Margin="0,8,0,0" />
+      <TextBlock Classes="muted" TextWrapping="Wrap"
+                 Text="Versions are stored in a library folder on the same drive as the Steam library holding the game, so they can be linked into the install." />
+      <TextBlock Classes="muted" Text="No library folders yet. One is created next to the Steam library on the first download." IsVisible="{Binding HasNoRoots}" TextWrapping="Wrap" />
+      <ItemsControl ItemsSource="{Binding Roots}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:RootItem">
+            <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+              <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Classes="muted" FontSize="12" Text="{Binding Info}" />
+              </StackPanel>
+              <Button Grid.Column="1" Content="Remove" Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).RemoveRootCommand}" CommandParameter="{Binding}" Margin="8,0,0,0" />
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <Button Content="Add folder..." Command="{Binding AddRootCommand}" />
+      <StackPanel Spacing="4" IsVisible="{Binding HasSuggestions}">
+        <TextBlock Text="Suggested" FontWeight="SemiBold" />
+        <ItemsControl ItemsSource="{Binding SuggestedRoots}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:RootItem">
+              <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Classes="muted" FontSize="12" Text="{Binding Info}" />
+                </StackPanel>
+                <Button Grid.Column="1" Content="Add" Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).AddSuggestedCommand}" CommandParameter="{Binding}" Margin="8,0,0,0" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+
+      <TextBlock Classes="h2" Text="Downloads" Margin="0,8,0,0" />
+      <Grid ColumnDefinitions="260,160" RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Downloads at the same time" VerticalAlignment="Center" />
+        <NumericUpDown Grid.Row="0" Grid.Column="1" Value="{Binding MaxConcurrentJobs}" Minimum="1" Maximum="16" Increment="1" FormatString="0" />
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Parallel chunk requests" VerticalAlignment="Center" />
+        <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding MaxConcurrentChunks}" Minimum="1" Maximum="128" Increment="1" FormatString="0" />
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Bandwidth limit (MiB/s, 0 = none)" VerticalAlignment="Center" />
+        <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding BandwidthLimitMiB}" Minimum="0" Maximum="10000" Increment="1" FormatString="0.#" />
+      </Grid>
+
+      <TextBlock Classes="h2" Text="Storage" Margin="0,8,0,0" />
+      <CheckBox Content="Share identical files between versions" IsChecked="{Binding DedupeEnabled}" />
+      <TextBlock Classes="hint" Text="Files that are the same in several versions are stored once (reflink where the drive supports it, otherwise hardlink)." />
+      <CheckBox Content="Mark shared files read-only" IsChecked="{Binding ReadOnlyProtection}" />
+      <TextBlock Classes="hint" Text="Protects shared files from being changed through one version. Files you chose to share on purpose (settings that carry across versions) stay writable." />
+      <TextBlock Text="Never share files matching (one pattern per line, * and ? wildcards)" />
+      <TextBox Text="{Binding ExclusionText}" AcceptsReturn="True" Height="90" FontFamily="{DynamicResource MonospaceFontFamily}" PlaceholderText="e.g. *.log" AutomationProperties.Name="Exclusion patterns" />
+
+      <TextBlock Classes="h2" Text="Switching" Margin="0,8,0,0" />
+      <Grid ColumnDefinitions="260,200">
+        <TextBlock Grid.Column="0" Text="When files cannot be linked" VerticalAlignment="Center" />
+        <ComboBox Grid.Column="1" ItemsSource="{Binding CopyFallbackOptions}" SelectedIndex="{Binding CopyFallbackIndex}" HorizontalAlignment="Stretch" />
+      </Grid>
+      <TextBlock Classes="hint" Margin="0,0,0,4" Text="Copying uses the full size of the game again, so DepotVault never copies without your consent." />
+      <CheckBox Content="Lock the Steam app manifest after switching" IsChecked="{Binding AcfLock}" />
+      <TextBlock Classes="hint" Text="Makes it harder for Steam to update a switched game behind your back. Reverting unlocks it." />
+
+      <TextBlock Classes="h2" Text="General" Margin="0,8,0,0" />
+      <CheckBox Content="Check library integrity on startup" IsChecked="{Binding IntegrityCheckOnStartup}" />
+      <CheckBox Content="Show the SteamDB walkthrough when importing" IsChecked="{Binding ShowTutorial}" />
+      <Grid ColumnDefinitions="260,200">
+        <TextBlock Grid.Column="0" Text="Theme" VerticalAlignment="Center" />
+        <ComboBox Grid.Column="1" ItemsSource="{Binding ThemeOptions}" SelectedIndex="{Binding ThemeIndex}" HorizontalAlignment="Stretch" />
+      </Grid>
+    </StackPanel>
+  </ScrollViewer>
 </UserControl>

@@ -144,6 +144,43 @@ internal static class Scenarios
                 save(window, "import-history");
                 break;
             }
+            case "settings":
+            {
+                var s = services.GetRequiredService<SettingsViewModel>();
+                shell.CurrentPage = s;
+                window.Height = 1250;
+                pump();
+                save(window, "settings");
+                s.MaxConcurrentJobs = 3;
+                s.MaxConcurrentChunks = 24;
+                s.BandwidthLimitMiB = 5.5m;
+                s.DedupeEnabled = false;
+                s.ExclusionText = "*.log\n  saves/*  \n\n*.log";
+                s.CopyFallbackIndex = 2;
+                s.AcfLock = false;
+                s.IntegrityCheckOnStartup = false;
+                s.ShowTutorial = false;
+                s.ThemeIndex = 2;
+                s.ReadOnlyProtection = true;
+                Wait(() => s.StatusText is not null, pump, 10);
+                Console.WriteLine($"Read-only: {s.StatusText}");
+                var root = s.Roots[0];
+                s.RemoveRootCommand.Execute(root);
+                Console.WriteLine($"Remove in-use root: {s.StatusText}; roots {s.Roots.Count}");
+                var extra = Path.Combine(vault.Paths.Root, "extra-root");
+                s.AddSuggestedCommand.Execute(new RootItem(extra, "", 0));
+                Console.WriteLine($"Added root, roots {s.Roots.Count}");
+                save(window, "settings-changed");
+                s.RemoveRootCommand.Execute(s.Roots.First(r => r.Path.EndsWith("extra-root")));
+                s.ReadOnlyProtection = false;
+                Wait(() => s.StatusText?.StartsWith("Unprotected") == true, pump, 10);
+                Console.WriteLine($"Read-only off: {s.StatusText}; roots {s.Roots.Count}");
+                vault.Settings.Flush();
+                using var reloaded = new DepotVault.Core.Persistence.SettingsStore(vault.Paths);
+                var c = reloaded.Current;
+                Console.WriteLine($"Persisted: jobs={c.MaxConcurrentJobs} chunks={c.MaxConcurrentChunks} bw={c.BandwidthLimitBytesPerSecond} dedupe={c.DedupeEnabled} globs=[{string.Join("|", c.GlobalExclusionGlobs)}] copy={c.CopyFallback} acf={c.AcfLock} integrity={c.IntegrityCheckOnStartup} dontShow={c.TutorialDontShowAgain} theme={c.Theme} ro={c.ReadOnlyProtection} roots=[{string.Join("|", c.LibraryRoots)}]");
+                break;
+            }
             default:
                 throw new ArgumentException($"Unknown scenario {name}");
         }
