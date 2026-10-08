@@ -48,10 +48,10 @@ Written 2026-10-08 when work moved from the user's Windows machine to a cloud se
 ## Status
 
 - **State:** implemented; open items are user-side only (step 22 interactive sign-in check, step 25 tutorial screenshots)
-- **Current step:** none (all steps done except the step 22 interactive check)
+- **Current step:** 33 - Depot sizes
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** ec4e639 (parent of HEAD)
+- **Last synced commit:** ed131f1 (parent of HEAD)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -353,6 +353,27 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Progress:** first CI run (2fdd0f5): APFS tests green (reflink + Keychain), HFS+ had 3 failures from 1-second mtimes, APFS UiSnap `library-actions` failed on an OS-dependent default depot selection. Both fixed in the scenario/tests; run on 6cc1d2f green on all 7 jobs (Linux ext4/btrfs/xfs, Windows NTFS/ReFS, macOS APFS/HFS+).
 - **Commit:** `add macos support`
 
+### 32. Removal flows `[x]`
+
+- **Files:** `src/DepotVault.Core/Library/Remover.cs`, `SteamInstall/Switcher.cs` (`ReleaseAsync`), `Library/LibraryIndex.cs`, `Library/AppRepository.cs`, `Download/DownloadQueue.cs`, `src/DepotVault.App/ViewModels/AppDetailViewModel.cs`, `ImportViewModel.cs`, `ConfirmViewModel.cs`, `Views/Dialogs/ConfirmDialog.axaml`, `AppDetailView.axaml(.cs)`, `ImportDialog.axaml`, UiSnap, tests
+- **Do (user request, decisions confirmed by the user):** every "get rid of this" flow deletes the downloads that belong to it and resets the game if it is in use. Deleting the switched-in version (directly or through its manifest) reverts to the original first and keeps managing the game. Deleting the "Original" (adopted) version releases it: original files move back into the Steam folder as plain files (shared inodes detached by reflink or copy), original ACF restored, DepotVault stops managing the install until the next switch. Manifest deletion never deletes the Original version. Remove game: release, then delete all versions, history, decisions, settings (`apps/<appid>.json`) and queue entries. History grid gets multi-select + "Delete selected from history..."; import dialog gets "Keep only the manifests in this paste" (removes other imported manifests of that depot, with their downloads, after a confirmation). Every flow confirms first and lists consequences; Steam must be closed when the install is touched. Strategy label "Symbolic links" renamed "Symlinks".
+- **Verify:** `dotnet test --solution DepotVault.slnx`; UiSnap `removal` and `library-actions`.
+- **Progress:** 90 tests pass (5 new: release, delete active, history cascade sparing the Original, remove game, Steam-running cancel). UiSnap `removal` (fake Steam): history delete of the active download reverted the game and kept the Original; keep-only import removed 2 manifests and their download; remove game restored the plain install and original ACF and deleted all data.
+- **Commit:** `add removal flows`
+
+### 33. Depot sizes `[ ]`
+
+- **Files:** `src/DepotVault.App/ViewModels/AppDetailViewModel.cs`, `AppDetailView.axaml`
+- **Do:** show each depot's size (current public manifest size from PICS, `maxsize` as fallback) in the depot list so the main game vs DLC depots are obvious at a glance.
+- **Verify:** UiSnap `pages` render.
+- **Commit:** `show depot sizes`
+
+### 34. Manifest branches `[!]`
+
+- **Do:** parse the branch SteamDB shows per manifest from the pasted rows, show it in the history grid and the import preview, and warn in the import dialog when a paste mixes branches.
+- **Blocked:** needs a real copied sample of SteamDB's manifest table with the branch column (format unknown; no SteamDB access from the cloud). Asked the user.
+- **Commit:** `add manifest branches`
+
 ## Risks
 
 - SteamDB format/access changes: parser stays tolerant (ID + date per line); plain ID lists always work.
@@ -393,6 +414,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 31 added at the user's request: macOS support without packaging. Keychain is the default token store with automatic file fallback instead of a settings toggle (user asked for an opinion; a toggle would only offer the weaker option). `SecretStore(path, interactive)`: the app and dvcli allow Keychain UI prompts, tests do not.
 - 2026-10-08 - Step 31 CI fixes: HFS+ stores mtimes with 1-second resolution, so a same-size edit within the same second as linking is invisible to the stat-only integrity scan (accepted limitation of the stat design; real edits happen later). Tests that edit right after linking now wait via `FsTime.WaitUntilNewerAsync` until the volume can tell timestamps apart (instant on APFS/NTFS/ext4/btrfs/xfs/ReFS). UiSnap `library-actions` selects depots explicitly because the default selection depends on the host OS.
 - 2026-10-08 - CI run 5 (windows-ntfs) exposed a real queue race: `Resume` was silently ignored while a paused (or failed) run was still winding down (`Cts` not yet cleared), so a quick Pause then Resume left the job paused. `Resume` now always re-queues; `Pump` starts it once the old run has exited. Regression test `ResumeWhilePausedRunIsStillStoppingIsNotLost` holds the stop phase open, so it fails deterministically without the fix.
+- 2026-10-08 - Steps 32-34 added at the user's request after local testing (removal flows, depot sizes, manifest branches). Removal cascades live in Core `Remover` so they are unit-testable; `DownloadQueue.WhenStoppedAsync` lets removals wait for canceled jobs before deleting their folders.
 
 ## Open questions
 

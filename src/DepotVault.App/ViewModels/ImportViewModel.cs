@@ -61,6 +61,12 @@ public partial class ImportViewModel : ObservableObject
     public ObservableCollection<ImportRowViewModel> Rows { get; } = [];
     public bool HasRows => Rows.Count > 0;
     public int Added { get; private set; }
+    public IReadOnlyList<(uint DepotId, ulong ManifestId)> ToRemove { get; private set; } = [];
+
+    [ObservableProperty]
+    private bool keepOnly;
+
+    partial void OnKeepOnlyChanged(bool value) => UpdateSummary();
 
     [ObservableProperty]
     private string pasteText;
@@ -138,8 +144,10 @@ public partial class ImportViewModel : ObservableObject
                     break;
             }
         }
-        Summary = Rows.Count == 0 ? null : $"{included} of {fresh} new manifest(s) selected, {dup} already imported, {invalid} line(s) not recognized.";
         var depot = DepotId;
+        var removing = ComputeRemovals().Count;
+        Summary = Rows.Count == 0 ? null : $"{included} of {fresh} new manifest(s) selected, {dup} already imported, {invalid} line(s) not recognized."
+            + (KeepOnly && removing > 0 ? $" {removing} other imported manifest(s) of depot {depot} will be removed, together with their downloads." : "");
         WarningText = Rows.Count == 0 ? null
             : depot == 0 ? "Pick the depot these manifests belong to (or paste the SteamDB page URL along with the rows)."
             : Depots.Count > 0 && SelectedDepot is null ? $"Depot {depot} is not in this game's depot list. Check that you copied the right depot."
@@ -147,11 +155,21 @@ public partial class ImportViewModel : ObservableObject
         ImportCommand.NotifyCanExecuteChanged();
     }
 
-    private bool CanImport() => DepotId != 0 && Rows.Any(r => r.Include && r.CanInclude);
+    private List<(uint DepotId, ulong ManifestId)> ComputeRemovals()
+    {
+        var depot = DepotId;
+        if (!KeepOnly || depot == 0 || Rows.Count == 0)
+            return [];
+        var keep = Rows.Where(r => r.Row.Status == ImportStatus.Duplicate || (r.CanInclude && r.Include)).Select(r => r.Row.ManifestId).ToHashSet();
+        return _app.History.Where(h => h.DepotId == depot && !keep.Contains(h.ManifestId)).Select(h => (h.DepotId, h.ManifestId)).ToList();
+    }
+
+    private bool CanImport() => DepotId != 0 && (Rows.Any(r => r.Include && r.CanInclude) || ComputeRemovals().Count > 0);
 
     [RelayCommand(CanExecute = nameof(CanImport))]
     private void Import()
     {
+        ToRemove = ComputeRemovals();
         Added = SteamDbParser.Commit(_app, DepotId, Rows.Where(r => r.Include).Select(r => r.Row));
         _vault.Apps.Save(_app);
         CloseRequested?.Invoke(true);

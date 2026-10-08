@@ -105,6 +105,8 @@ public class SwitcherTests
             return Lib.Find(v.Id);
         }
 
+        public Remover Remover() => new(Lib, Apps, Index, null, _ => Switcher(), _ => File.Exists(AcfPath) ? Installed : null);
+
         public Task<SwitchReport> Switch(VersionRecord v, uint buildId = 0) => Switcher().SwitchAsync(new SwitchRequest { AppId = 10, TargetVersionId = v.Id, Install = Installed, AcfBuildId = buildId }, TestContext.Current.CancellationToken);
 
         public string Read(string rel) => File.ReadAllText(Path.Combine(InstallDir, rel));
@@ -312,5 +314,121 @@ public class SwitcherTests
         var f = Assert.Single(report.Failures);
         Assert.Equal(missing, f.Path);
         Assert.Equal("v2", env.Read("game.exe"));
+    }
+
+    private static void AssertOriginalInstall(Env env)
+    {
+        Assert.False(LinkStrategy.IsDirectoryLink(env.InstallDir));
+        Assert.Equal("v1", env.Read("game.exe"));
+        Assert.Equal("legacy", env.Read("old.txt"));
+        Assert.Equal(Big, File.ReadAllBytes(Path.Combine(env.InstallDir, "data.pak")));
+        Assert.Equal(env.OriginalAcf, File.ReadAllText(env.AcfPath));
+        Assert.False(FileUtil.IsReadOnly(env.AcfPath));
+    }
+
+    [Fact]
+    public async Task ReleaseMovesOriginalBackAsIndependentFiles()
+    {
+        using var env = new Env();
+        var v2 = await env.Download(2);
+        Assert.True((await env.Switch(v2)).Success);
+        var adoptedId = env.Lib.GetApp(10).AdoptedVersionId;
+
+        var report = await env.Switcher().ReleaseAsync(10, env.Installed, detachShared: true, TestContext.Current.CancellationToken);
+
+        Assert.True(report.Success, string.Join("; ", report.Failures));
+        AssertOriginalInstall(env);
+        var strategy = LinkStrategy.CreateForCurrentPlatform();
+        Assert.All(Directory.EnumerateFiles(env.InstallDir, "*", SearchOption.AllDirectories), f => Assert.Equal(1u, strategy.GetFileIdentity(f).LinkCount));
+        Assert.Null(env.Lib.Find(adoptedId));
+        Assert.Null(env.Lib.GetApp(10).AdoptedVersionId);
+        Assert.Null(env.Lib.GetApp(10).ActiveVersionId);
+        Assert.Equal(Big, File.ReadAllBytes(Path.Combine(env.Lib.GetVersionDir(v2), "data.pak")));
+
+        var again = await env.Switch(v2);
+        Assert.True(again.Success, string.Join("; ", again.Failures));
+        Assert.NotNull(again.AdoptedVersionId);
+    }
+
+    [Fact]
+    public async Task DeletingActiveVersionRevertsFirst()
+    {
+        using var env = new Env();
+        var v2 = await env.Download(2);
+        Assert.True((await env.Switch(v2)).Success);
+
+        var report = await env.Remover().DeleteVersionAsync(v2.Id, env.Prompts, TestContext.Current.CancellationToken);
+
+        Assert.True(report.Success, string.Join("; ", report.Failures));
+        Assert.Null(env.Lib.Find(v2.Id));
+        var app = env.Lib.GetApp(10);
+        Assert.Equal(app.AdoptedVersionId, app.ActiveVersionId);
+        Assert.Equal("v1", env.Read("game.exe"));
+        Assert.Equal(env.OriginalAcf, File.ReadAllText(env.AcfPath));
+    }
+
+    [Fact]
+    public async Task DeletingHistoryRemovesMatchingDownloadsButNeverTheOriginal()
+    {
+        using var env = new Env();
+        var v2 = await env.Download(2);
+        var v3 = await env.Download(3);
+        Assert.True((await env.Switch(v3)).Success);
+        var adoptedId = env.Lib.GetApp(10).AdoptedVersionId;
+        var rec = env.Apps.Get(10);
+        rec.History = [new ManifestHistoryEntry { DepotId = 11, ManifestId = 1 }, new ManifestHistoryEntry { DepotId = 11, ManifestId = 2 }, new ManifestHistoryEntry { DepotId = 11, ManifestId = 3 }];
+        (uint, ulong)[] remove = [(11, 1), (11, 3)];
+
+        var plan = env.Remover().PlanHistoryRemoval(10, remove);
+        Assert.Equal([v3.Id], plan.Versions.Select(v => v.Id));
+        Assert.Equal(v3.Id, plan.Active?.Id);
+
+        var report = await env.Remover().DeleteHistoryAsync(10, remove, env.Prompts, TestContext.Current.CancellationToken);
+
+        Assert.True(report.Success, string.Join("; ", report.Failures));
+        Assert.Null(env.Lib.Find(v3.Id));
+        Assert.NotNull(env.Lib.Find(v2.Id));
+        Assert.NotNull(env.Lib.Find(adoptedId));
+        Assert.Equal(adoptedId, env.Lib.GetApp(10).ActiveVersionId);
+        Assert.Equal([2ul], env.Apps.Get(10).History.Select(h => h.ManifestId));
+        Assert.Equal("v1", env.Read("game.exe"));
+    }
+
+    [Fact]
+    public async Task RemovingAppRestoresInstallAndDeletesEverything()
+    {
+        using var env = new Env();
+        var v2 = await env.Download(2);
+        var v3 = await env.Download(3);
+        Assert.True((await env.Switch(v2)).Success);
+        var dirs = env.Lib.VersionsFor(10).Select(env.Lib.GetVersionDir).ToList();
+        env.Apps.Save(env.Apps.Get(10), debounced: false);
+
+        var report = await env.Remover().RemoveAppAsync(10, env.Prompts, TestContext.Current.CancellationToken);
+
+        Assert.True(report.Success, string.Join("; ", report.Failures));
+        AssertOriginalInstall(env);
+        Assert.Empty(env.Lib.VersionsFor(10));
+        Assert.Null(env.Lib.GetApp(10));
+        Assert.False(File.Exists(env.Paths.AppFile(10)));
+        Assert.All(dirs, d => Assert.False(Directory.Exists(d)));
+        var strategy = LinkStrategy.CreateForCurrentPlatform();
+        Assert.All(Directory.EnumerateFiles(env.InstallDir, "*", SearchOption.AllDirectories), f => Assert.Equal(1u, strategy.GetFileIdentity(f).LinkCount));
+    }
+
+    [Fact]
+    public async Task SteamRunningCancelsRemovalWithoutChanges()
+    {
+        using var env = new Env();
+        var v2 = await env.Download(2);
+        Assert.True((await env.Switch(v2)).Success);
+        env.SteamRunning = true;
+        env.Prompts.OnSteam = () => false;
+
+        var report = await env.Remover().RemoveAppAsync(10, env.Prompts, TestContext.Current.CancellationToken);
+
+        Assert.True(report.Canceled);
+        Assert.NotNull(env.Lib.Find(v2.Id));
+        Assert.True(LinkStrategy.IsDirectoryLink(env.InstallDir));
     }
 }

@@ -161,6 +161,17 @@ public sealed class LibraryIndex : IDisposable
         Save();
     }
 
+    public void RemoveApp(uint appId)
+    {
+        lock (_lock)
+        {
+            if (_doc.Versions.Exists(v => v.AppId == appId))
+                throw new InvalidOperationException("Delete the app's versions first.");
+            _doc.Apps.RemoveAll(a => a.AppId == appId);
+        }
+        Save();
+    }
+
     public void SetActive(uint appId, string versionId) => UpdateApp(appId, a => a.ActiveVersionId = versionId);
 
     public void DeleteVersion(string versionId)

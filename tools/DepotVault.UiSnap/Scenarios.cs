@@ -5,6 +5,7 @@ using DepotVault.App.Views;
 using DepotVault.App.Views.Dialogs;
 using DepotVault.Core;
 using DepotVault.Core.Download;
+using DepotVault.Core.Linking;
 using DepotVault.Core.Steam;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,7 +13,7 @@ internal static class Scenarios
 {
     public static void Prepare(string scenario, string dataDir)
     {
-        if (scenario is not ("switch-dialogs" or "mutable"))
+        if (scenario is not ("switch-dialogs" or "mutable" or "removal"))
             return;
         var home = Path.Combine(dataDir, "home");
         var steamApps = OperatingSystem.IsMacOS()
@@ -75,6 +76,8 @@ internal static class Scenarios
             }
             case "library-actions":
             {
+                Window shown = null;
+                services.GetRequiredService<DialogService>().Showing += w => shown = w;
                 var lib = services.GetRequiredService<LibraryViewModel>();
                 shell.CurrentPage = lib;
                 lib.OnActivated();
@@ -94,7 +97,10 @@ internal static class Scenarios
                 d.SelectedVersion = d.Versions.First(v => !v.IsActive && v.IsComplete);
                 var deleting = d.SelectedVersion.Id;
                 d.DeleteCommand.Execute(null);
-                pump();
+                Wait(() => shown is ConfirmDialog, pump, 5);
+                save(shown, "confirm-delete-version");
+                ((ConfirmViewModel)shown.DataContext).ConfirmCommand.Execute(null);
+                Wait(() => !d.IsBusy && d.StatusText?.StartsWith("Deleted") == true, pump, 10);
                 Console.WriteLine($"After delete {deleting}: {d.StatusText}; exists={vault.Library.Find(deleting) is not null}");
                 Check(vault.Library.Find(deleting) is null, "delete removes the version");
                 d.SelectedVersion = d.Versions.First(v => v.IsActive);
@@ -368,6 +374,76 @@ internal static class Scenarios
                 uint Links(string rel) => vault.Strategy.GetFileIdentity(Path.Combine(vault.Library.GetVersionDir(older), rel)).LinkCount;
                 Check(d.StatusText.StartsWith("Switched") && app.MutableReviewed && d.PendingReviewCount == 0, "review saved and switch ran");
                 Check(Links(files[2].Rel) == 1 && Links(files[1].Rel) == 2 && Links(files[0].Rel) == 2, "Isolate detached, Share and undecided stay linked");
+                break;
+            }
+            case "removal":
+            {
+                Window shown = null;
+                services.GetRequiredService<DialogService>().Showing += w => shown = w;
+                vault.IsSteamRunning = () => false;
+                CacheInstalledManifest(vault);
+                var lib = services.GetRequiredService<LibraryViewModel>();
+                shell.CurrentPage = lib;
+                lib.OnActivated();
+                pump();
+                var d = lib.Detail;
+                var installDir = d.InstallText[(d.InstallText.IndexOf(" at ") + 4)..];
+                var acfPath = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(installDir)), "appmanifest_480000.acf");
+                var originalAcf = File.ReadAllText(acfPath);
+                var older = vault.Library.VersionsFor(480000).First(v => v.Label == "Pre-patch");
+                var newer = vault.Library.VersionsFor(480000).First(v => v.Id != older.Id);
+                d.SelectedVersion = d.Versions.First(v => v.Id == older.Id);
+                d.SwitchCommand.Execute(null);
+                Wait(() => !d.IsBusy && d.StatusText?.StartsWith("Switched") == true, pump, 30);
+                var adoptedId = vault.Library.GetApp(480000).AdoptedVersionId;
+                Check(vault.Library.GetApp(480000).ActiveVersionId == older.Id && adoptedId is not null, "switched to Pre-patch (original adopted)");
+
+                void Confirm(string shot)
+                {
+                    Wait(() => shown is ConfirmDialog, pump, 10);
+                    var cvm = (ConfirmViewModel)shown.DataContext;
+                    Console.WriteLine($"Confirm: {cvm.Title} | {string.Join(" | ", cvm.Details)}");
+                    save(shown, shot);
+                    shown = null;
+                    cvm.ConfirmCommand.Execute(null);
+                }
+
+                d.SetHistorySelection(d.History.Where(h => h.ManifestId == 1111111111111111111));
+                d.DeleteHistoryCommand.Execute(null);
+                Confirm("confirm-delete-history");
+                Wait(() => !d.IsBusy && d.StatusText?.StartsWith("Deleted") == true, pump, 30);
+                Console.WriteLine($"History delete: {d.StatusText}");
+                Check(vault.Library.Find(older.Id) is null && vault.Library.Find(adoptedId) is not null, "active download deleted, original kept");
+                Check(vault.Library.GetApp(480000).ActiveVersionId == adoptedId && File.ReadAllText(Path.Combine(installDir, "game.bin")) == "installed", "game reverted to the original install");
+                Check(vault.Apps.Get(480000).History.All(h => h.ManifestId != 1111111111111111111), "manifest removed from history");
+
+                d.ImportCommand.Execute(null);
+                pump();
+                var dialogs = services.GetRequiredService<AppDialogs>();
+                var ivm = (ImportViewModel)dialogs.ActiveImport.DataContext;
+                ivm.PasteText = "https://steamdb.info/depot/480001/manifests/\n7777777777777777777";
+                ivm.KeepOnly = true;
+                pump();
+                Console.WriteLine($"Keep-only summary: {ivm.Summary}");
+                Check(ivm.Summary.Contains("2 other imported manifest(s)"), "keep-only previews the removals");
+                save(dialogs.ActiveImport, "import-keep-only");
+                ivm.ImportCommand.Execute(null);
+                Confirm("confirm-keep-only");
+                Wait(() => !d.IsBusy && d.StatusText?.StartsWith("Deleted") == true, pump, 30);
+                Check(vault.Apps.Get(480000).History.Where(h => h.DepotId == 480001).Select(h => h.ManifestId).SequenceEqual([7777777777777777777ul]), "only the pasted manifest remains");
+                Check(vault.Library.Find(newer.Id) is null && vault.Library.Find(adoptedId) is not null, "download of a removed manifest deleted, original kept");
+                save(window, "after-keep-only");
+
+                d.RemoveAppCommand.Execute(null);
+                Confirm("confirm-remove-game");
+                Wait(() => vault.Library.GetApp(480000) is null, pump, 30);
+                pump();
+                Console.WriteLine($"Library status: {lib.StatusText}");
+                Check(!LinkStrategy.IsDirectoryLink(installDir) && File.ReadAllText(Path.Combine(installDir, "game.bin")) == "installed", "original install moved back as plain files");
+                Check(File.ReadAllText(acfPath) == originalAcf, "original Steam app manifest restored");
+                Check(vault.Library.VersionsFor(480000).Count == 0 && !File.Exists(vault.Paths.AppFile(480000)), "all versions and app data deleted");
+                Check(lib.StatusText?.StartsWith("Removed") == true && lib.Apps.All(a => a.AppId != 480000), "library list updated");
+                save(window, "after-remove-game");
                 break;
             }
             default:

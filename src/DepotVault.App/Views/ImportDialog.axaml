@@ -25,6 +25,8 @@
       <Button Content="Import" Command="{Binding ImportCommand}" Classes="accent" />
       <Button Content="Cancel" Command="{Binding CancelCommand}" IsCancel="True" />
     </StackPanel>
+    <CheckBox DockPanel.Dock="Top" Margin="0,8,0,0" IsChecked="{Binding KeepOnly}"
+              Content="Keep only the manifests in this paste (other imported manifests of this depot are removed)" />
     <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,8">
       <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" IsVisible="{Binding Summary, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       <TextBlock Text="{Binding WarningText}" Foreground="#D13438" TextWrapping="Wrap" IsVisible="{Binding WarningText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />

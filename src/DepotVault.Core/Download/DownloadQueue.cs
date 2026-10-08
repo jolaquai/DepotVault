@@ -126,6 +126,19 @@ public sealed class DownloadQueue : IDisposable
         Persist();
     }
 
+    public async Task WhenStoppedAsync(Guid id)
+    {
+        while (true)
+        {
+            lock (_lock)
+            {
+                if (_doc.Jobs.Find(j => j.Id == id) is not { Cts: not null })
+                    return;
+            }
+            await Task.Delay(25).ConfigureAwait(false);
+        }
+    }
+
     public void Move(Guid id, int newIndex)
     {
         lock (_lock)

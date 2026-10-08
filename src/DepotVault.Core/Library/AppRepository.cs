@@ -43,6 +43,15 @@ public sealed class AppRepository(AppPaths paths) : IDisposable
         return (store, rec);
     }, paths);
 
+    public void Delete(uint appId)
+    {
+        if (_cache.TryRemove(appId, out var e))
+            e.Store.Dispose();
+        var file = paths.AppFile(appId);
+        if (File.Exists(file))
+            File.Delete(file);
+    }
+
     public void Flush()
     {
         foreach (var e in _cache.Values)

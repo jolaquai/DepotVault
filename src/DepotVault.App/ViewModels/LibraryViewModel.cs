@@ -136,7 +136,10 @@ public partial class LibraryViewModel : PageViewModel
     {
         Detail?.Dispose();
         Detail = value is null ? null : ActivatorUtilities.CreateInstance<AppDetailViewModel>(_services, value.AppId);
-        Detail?.OnActivated();
+        if (Detail is null)
+            return;
+        Detail.AppRemoved += msg => StatusText = msg;
+        Detail.OnActivated();
     }
 
     [RelayCommand]

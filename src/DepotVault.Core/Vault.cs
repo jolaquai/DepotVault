@@ -43,6 +43,7 @@ public sealed class Vault : IAsyncDisposable, IDisposable
         Queue = new DownloadQueue(new AtomicJsonStore<QueueDocument>(paths.Queue, JsonContext.Default.QueueDocument), runner, () => Settings.Current.MaxConcurrentJobs);
         Queue.JobChanged += OnJobChanged;
         Session.StateChanged += OnSessionStateChanged;
+        Remover = new Remover(Library, Apps, Index, Queue, CreateSwitcher, id => Locator?.FindApp(id));
     }
 
     public AppPaths Paths { get; }
@@ -68,6 +69,7 @@ public sealed class Vault : IAsyncDisposable, IDisposable
     public ReadOnlyProtection ReadOnly { get; }
     public LibraryTargetResolver Resolver { get; }
     public DownloadQueue Queue { get; }
+    public Remover Remover { get; }
     public Func<bool> IsSteamRunning { get; set; } = SteamLocator.IsSteamRunning;
 
     public event Action<uint, HealReport> HealCompleted;

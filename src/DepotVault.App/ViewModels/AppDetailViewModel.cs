@@ -143,7 +143,7 @@ public partial class AppDetailViewModel : ObservableObject, IDisposable
     public bool HasHistory => History.Count > 0;
     public bool HasAdopted => _vault.Library.GetApp(AppId)?.AdoptedVersionId is not null;
     public int PendingReviewCount => _app?.ReviewCandidates?.Count ?? 0;
-    public IReadOnlyList<string> StrategyOptions { get; } = ["Automatic (recommended)", "Whole-folder link", "Hardlinks", "Symbolic links", "Copy files (full disk space)"];
+    public IReadOnlyList<string> StrategyOptions { get; } = ["Automatic (recommended)", "Whole-folder link", "Hardlinks", "Symlinks", "Copy files (full disk space)"];
     private static readonly string[] StrategyValues = [null, "junction", "hardlink", "symlink", "copy"];
     private bool _loadingStrategy;
 
@@ -454,37 +454,135 @@ public partial class AppDetailViewModel : ObservableObject, IDisposable
         }
     }
 
-    [RelayCommand(CanExecute = nameof(HasVersion))]
-    private void Delete()
+    private static string Describe(VersionRecord v) => v.Label ?? Format.Date(v.ManifestDateUtc == default ? v.CreatedUtc : v.ManifestDateUtc);
+
+    private bool IsInstalled => _vault.Locator?.FindApp(AppId) is not null;
+
+    private async Task<bool> RunRemovalAsync(string busyText, Func<ISwitchPrompts, Task<SwitchReport>> action, string doneText)
     {
-        var v = SelectedVersion;
-        if (v.IsActive)
-        {
-            StatusText = "Switch to another version before deleting this one.";
-            return;
-        }
-        foreach (var j in _vault.Queue.Jobs.Where(j => j.TargetVersionId == v.Id && !j.IsFinished))
-            _vault.Queue.Cancel(j.Id);
+        IsBusy = true;
+        StatusText = busyText;
         try
         {
-            _vault.DeleteVersion(v.Id);
-            StatusText = $"Deleted {v.Label ?? v.Id}. Files shared with other versions were kept.";
+            var report = await action(_prompts.Create());
+            if (report.Canceled)
+            {
+                StatusText = "Canceled; nothing was changed.";
+                return false;
+            }
+            if (!report.Success)
+            {
+                StatusText = $"Stopped with {report.Failures.Count} problem(s); nothing else was deleted.";
+                _ = _appDialogs.ShowSwitchReportAsync(report);
+                return false;
+            }
+            StatusText = doneText;
+            return true;
         }
         catch (Exception ex)
         {
+            _log.LogError(ex, "Removal failed for {App}", AppId);
             StatusText = $"Delete failed: {ex.Message}";
+            return false;
         }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(HasVersion))]
+    private async Task DeleteAsync()
+    {
+        var v = SelectedVersion.Record;
+        var installed = IsInstalled;
+        var details = new List<string>();
+        if (v.Adopted)
+        {
+            details.Add(installed
+                ? "This is your original install. Its files are moved back into the Steam folder as plain files and DepotVault stops managing the install until your next switch. Files it shares with other versions are copied so both stay independent."
+                : "This is your original install and the game is no longer installed in Steam, so these files are deleted for good.");
+        }
+        else
+        {
+            if (SelectedVersion.IsActive)
+                details.Add(installed ? "It is switched in right now, so the original install is restored first (Steam must be closed)." : "It was switched in, but the game is no longer installed in Steam.");
+            details.Add("Files it shares with other versions are kept for them.");
+        }
+        if (_vault.Queue.Jobs.Any(j => j.TargetVersionId == v.Id && !j.IsFinished))
+            details.Add("Its unfinished downloads are canceled.");
+        if (!await _appDialogs.ConfirmAsync($"Delete \"{Describe(v)}\"?", "The version is removed from the library.", details, "Delete"))
+            return;
+        await RunRemovalAsync("Deleting...", p => _vault.Remover.DeleteVersionAsync(v.Id, p), $"Deleted \"{Describe(v)}\".");
         Refresh();
+    }
+
+    private List<HistoryItemViewModel> _historySelection = [];
+
+    public void SetHistorySelection(IEnumerable<HistoryItemViewModel> items)
+    {
+        _historySelection = items.ToList();
+        DeleteHistoryCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool HasHistorySelection() => _historySelection.Count > 0;
+
+    [RelayCommand(CanExecute = nameof(HasHistorySelection))]
+    private Task DeleteHistoryAsync() => DeleteHistoryEntriesAsync(_historySelection.Select(h => (h.DepotId, h.ManifestId)).ToList());
+
+    private async Task DeleteHistoryEntriesAsync(List<(uint DepotId, ulong ManifestId)> entries)
+    {
+        var plan = _vault.Remover.PlanHistoryRemoval(AppId, entries);
+        var details = new List<string>();
+        foreach (var v in plan.Versions)
+        {
+            details.Add(v == plan.Active
+                ? $"Download \"{Describe(v)}\" is deleted. It is switched in right now, so the original install is restored first (Steam must be closed)."
+                : $"Download \"{Describe(v)}\" is deleted.");
+        }
+        if (details.Count == 0)
+            details.Add("No downloaded version uses these manifests.");
+        if (!await _appDialogs.ConfirmAsync($"Delete {entries.Count} manifest(s) from the history?", "They disappear from the manifest history. You can import them again at any time.", details, "Delete"))
+            return;
+        await RunRemovalAsync("Deleting...", p => _vault.Remover.DeleteHistoryAsync(AppId, entries, p), $"Deleted {entries.Count} manifest(s) from the history.");
+        Refresh();
+    }
+
+    public event Action<string> AppRemoved;
+
+    [RelayCommand]
+    private async Task RemoveAppAsync()
+    {
+        var plan = _vault.Remover.PlanAppRemoval(AppId);
+        var installed = IsInstalled;
+        var details = new List<string>();
+        var downloads = plan.Versions.Count(v => !v.Adopted);
+        if (downloads > 0)
+            details.Add($"{downloads} downloaded version(s) are deleted.");
+        if (plan.ReleasesOriginal)
+            details.Add(installed ? "Your original install is moved back into the Steam folder as plain files, exactly as it was before DepotVault took it over (Steam must be closed)." : "The game is no longer installed in Steam, so the stored copy of your original install is deleted too.");
+        else if (plan.Active is not null && installed)
+            details.Add("The switched-in version is removed from the Steam folder (Steam must be closed).");
+        details.Add("Imported manifest history, file decisions and settings for this game are removed.");
+        if (!await _appDialogs.ConfirmAsync($"Remove {Name} from DepotVault?", "Everything DepotVault stored for this game goes away.", details, "Remove"))
+            return;
+        if (await RunRemovalAsync("Removing...", p => _vault.Remover.RemoveAppAsync(AppId, p), null))
+            AppRemoved?.Invoke($"Removed {Name} from DepotVault.");
+        else
+            Refresh();
     }
 
     [RelayCommand]
     private async Task ImportAsync()
     {
-        var added = await _appDialogs.ShowImportAsync(AppId);
-        if (added == 0)
-            return;
-        Refresh();
-        StatusText = $"Imported {added} manifest(s).";
+        var outcome = await _appDialogs.ShowImportAsync(AppId);
+        if (outcome.Added > 0)
+        {
+            Refresh();
+            StatusText = $"Imported {outcome.Added} manifest(s).";
+        }
+        if (outcome.Remove.Count > 0)
+            await DeleteHistoryEntriesAsync(outcome.Remove.ToList());
     }
 
     [RelayCommand]

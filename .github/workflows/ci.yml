@@ -115,7 +115,7 @@ jobs:
         shell: bash
         run: |
           scenarios="pages library-actions import settings"
-          if [ "$RUNNER_OS" != Windows ]; then scenarios="$scenarios switch-dialogs mutable"; fi
+          if [ "$RUNNER_OS" != Windows ]; then scenarios="$scenarios switch-dialogs mutable removal"; fi
           t=""
           if command -v timeout >/dev/null; then t="timeout 300"; fi
           rc=0

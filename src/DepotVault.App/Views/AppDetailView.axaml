@@ -50,8 +50,8 @@
       <TextBlock Classes="h2" Text="Manifest history" />
       <TextBlock Classes="muted" TextWrapping="Wrap" IsVisible="{Binding !HasHistory}"
                  Text="No manifest history yet. Steam only reports the current manifest; import older ones from SteamDB." />
-      <DataGrid ItemsSource="{Binding History}" SelectedItem="{Binding SelectedHistory}" IsVisible="{Binding HasHistory}"
-                AutoGenerateColumns="False" CanUserResizeColumns="True" GridLinesVisibility="Horizontal" MaxHeight="260">
+      <DataGrid x:Name="HistoryGrid" ItemsSource="{Binding History}" SelectedItem="{Binding SelectedHistory}" IsVisible="{Binding HasHistory}"
+                SelectionMode="Extended" AutoGenerateColumns="False" CanUserResizeColumns="True" GridLinesVisibility="Horizontal" MaxHeight="260">
         <DataGrid.Columns>
           <DataGridTextColumn Header="Date" Binding="{Binding Date}" x:DataType="vm:HistoryItemViewModel" IsReadOnly="True" Width="170" />
           <DataGridTextColumn Header="Depot" Binding="{Binding DepotId}" x:DataType="vm:HistoryItemViewModel" IsReadOnly="True" Width="90" />
@@ -61,7 +61,10 @@
           <DataGridCheckBoxColumn Header="Purged" Binding="{Binding Unavailable}" x:DataType="vm:HistoryItemViewModel" IsReadOnly="True" Width="80" />
         </DataGrid.Columns>
       </DataGrid>
-      <Button Content="Download selected manifest" Command="{Binding DownloadHistoryCommand}" IsVisible="{Binding HasHistory}" />
+      <WrapPanel ItemSpacing="8" LineSpacing="8" IsVisible="{Binding HasHistory}">
+        <Button Content="Download selected manifest" Command="{Binding DownloadHistoryCommand}" />
+        <Button Content="Delete selected from history..." Command="{Binding DeleteHistoryCommand}" />
+      </WrapPanel>
 
       <TextBlock Classes="h2" Text="Versions in the library" />
       <DataGrid ItemsSource="{Binding Versions}" SelectedItem="{Binding SelectedVersion}"
@@ -80,7 +83,7 @@
         <Button Content="Switch Steam install to this version" Command="{Binding SwitchCommand}" Classes="accent" />
         <Button Content="Open folder" Command="{Binding OpenFolderCommand}" />
         <Button Content="Verify" Command="{Binding VerifyCommand}" />
-        <Button Content="Delete" Command="{Binding DeleteCommand}" />
+        <Button Content="Delete..." Command="{Binding DeleteCommand}" />
       </WrapPanel>
       <TextBlock Classes="muted" TextWrapping="Wrap"
                  Text="Steam's &quot;Verify integrity of game files&quot; and Steam updates put the current build back into a switched install. Switch again afterwards; the stored versions are not affected." />
@@ -92,6 +95,7 @@
       </Grid>
       <TextBlock Classes="muted" TextWrapping="Wrap"
                  Text="Some anti-cheat or DRM systems reject linked files. Change this only if the game refuses to start after switching. Copy uses the full size of the game for every switch." />
+      <Button Content="Remove game from DepotVault..." Command="{Binding RemoveAppCommand}" HorizontalAlignment="Left" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

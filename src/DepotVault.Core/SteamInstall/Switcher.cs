@@ -14,17 +14,24 @@ public sealed class Switcher(LibraryIndex library, AppRepository apps, SettingsS
 
     private readonly Func<bool> _isSteamRunning = isSteamRunning ?? SteamLocator.IsSteamRunning;
 
-    public async Task<SwitchReport> SwitchAsync(SwitchRequest request, CancellationToken ct = default)
+    private async Task<bool> WaitForSteamAsync(SwitchReport report, CancellationToken ct)
     {
-        var report = new SwitchReport();
         while (_isSteamRunning())
         {
             if (!await prompts.WaitForSteamExitAsync(ct).ConfigureAwait(false))
             {
                 report.Canceled = true;
-                return report;
+                return false;
             }
         }
+        return true;
+    }
+
+    public async Task<SwitchReport> SwitchAsync(SwitchRequest request, CancellationToken ct = default)
+    {
+        var report = new SwitchReport();
+        if (!await WaitForSteamAsync(report, ct).ConfigureAwait(false))
+            return report;
 
         var target = library.Find(request.TargetVersionId);
         if (target is null || target.AppId != request.AppId)
@@ -176,6 +183,99 @@ public sealed class Switcher(LibraryIndex library, AppRepository apps, SettingsS
             FileUtil.SetReadOnly(installed.AcfPath, false);
         }
         return report;
+    }
+
+    public async Task<SwitchReport> ReleaseAsync(uint appId, InstalledApp installed, bool detachShared, CancellationToken ct = default)
+    {
+        var report = new SwitchReport();
+        if (!await WaitForSteamAsync(report, ct).ConfigureAwait(false))
+            return report;
+        var app = apps.Get(appId);
+        var install = app.Install ??= new InstallState();
+        var installDir = Path.GetFullPath(installed.InstallPath);
+        report.StagingDir = Path.Combine(library.Paths.Root, "staging", appId.ToString(), DateTime.UtcNow.ToString("yyyyMMdd-HHmmss"));
+        TearDown(installDir, install, report);
+        install.VersionId = null;
+        library.UpdateApp(appId, a => a.ActiveVersionId = null);
+
+        if (library.GetApp(appId)?.AdoptedVersionId is { } adoptedId && library.Find(adoptedId) is { } adopted)
+        {
+            var src = library.GetVersionDir(adopted);
+            if (Directory.Exists(src))
+            {
+                ReadOnlyProtection.Remove(src);
+                var parent = Path.GetDirectoryName(installDir);
+                Directory.CreateDirectory(parent);
+                if (!Directory.Exists(installDir) && linker.Capabilities.SameVolume(src, parent))
+                {
+                    Directory.Move(src, installDir);
+                }
+                else
+                {
+                    foreach (var file in Directory.EnumerateFiles(src, "*", Recursive))
+                    {
+                        var dst = Path.Combine(installDir, Path.GetRelativePath(src, file));
+                        Directory.CreateDirectory(Path.GetDirectoryName(dst));
+                        try
+                        {
+                            File.Move(file, dst, true);
+                        }
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                        {
+                            report.Failures.Add(new SwitchFailure(dst, ex.Message));
+                        }
+                    }
+                }
+                if (detachShared && Directory.Exists(installDir))
+                    DetachAll(installDir, report);
+            }
+            if (report.Failures.Count > 0)
+                return report;
+            var original = Path.Combine(library.Paths.VersionDir(adoptedId), OriginalAcfName);
+            if (File.Exists(original))
+            {
+                if (File.Exists(installed.AcfPath))
+                    FileUtil.SetReadOnly(installed.AcfPath, false);
+                File.Copy(original, installed.AcfPath, true);
+                FileUtil.SetReadOnly(installed.AcfPath, false);
+            }
+            library.UpdateApp(appId, a => a.AdoptedVersionId = null);
+            index?.RemoveVersion(adoptedId);
+            library.DeleteVersion(adoptedId);
+        }
+        else if (File.Exists(installed.AcfPath))
+        {
+            FileUtil.SetReadOnly(installed.AcfPath, false);
+        }
+        app.Install = null;
+        apps.Save(app, debounced: false);
+        report.Success = report.Failures.Count == 0;
+        return report;
+    }
+
+    private void DetachAll(string dir, SwitchReport report)
+    {
+        foreach (var full in Directory.EnumerateFiles(dir, "*", Recursive))
+        {
+            if (linker.Strategy.GetFileIdentity(full).LinkCount <= 1)
+                continue;
+            var tmp = full + ".dvdetach";
+            try
+            {
+                FileUtil.ForceDelete(tmp);
+                if (linker.Link(full, tmp, new LinkRules(AllowHardlink: false, AllowSymlink: false, AllowCopy: true)) == LinkKind.None)
+                {
+                    report.Failures.Add(new SwitchFailure(full, "Could not make an independent copy."));
+                    continue;
+                }
+                FileUtil.ForceDelete(full);
+                File.Move(tmp, full);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                report.Failures.Add(new SwitchFailure(full, ex.Message));
+            }
+        }
     }
 
     private async Task<VersionRecord> AdoptAsync(SwitchRequest request, string root, string installDir, SwitchReport report, CancellationToken ct)
