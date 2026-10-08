@@ -6,6 +6,7 @@
              RequestedThemeVariant="Default">
   <Application.DataTemplates>
     <DataTemplate DataType="vm:LibraryViewModel"><v:LibraryView /></DataTemplate>
+    <DataTemplate DataType="vm:AppDetailViewModel"><v:AppDetailView /></DataTemplate>
     <DataTemplate DataType="vm:DownloadsViewModel"><v:DownloadsView /></DataTemplate>
     <DataTemplate DataType="vm:SettingsViewModel"><v:SettingsView /></DataTemplate>
     <DataTemplate DataType="vm:HelpViewModel"><v:HelpView /></DataTemplate>

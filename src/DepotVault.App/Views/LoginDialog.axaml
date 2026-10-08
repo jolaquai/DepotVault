@@ -7,21 +7,21 @@
         WindowStartupLocation="CenterOwner">
   <StackPanel Margin="20" Spacing="12">
     <TabControl SelectedIndex="{Binding SelectedTab}" IsEnabled="{Binding !IsGuardVisible}">
-      <TabItem Header="Account">
-        <StackPanel Spacing="10" Margin="0,12,0,0">
-          <TextBox PlaceholderText="Steam account name" Text="{Binding Username}" AutomationProperties.Name="Account name" />
-          <TextBox PlaceholderText="Password" PasswordChar="•" Text="{Binding Password}" AutomationProperties.Name="Password" />
-          <CheckBox Content="Remember me on this computer" IsChecked="{Binding Remember}" />
-          <Button Content="Sign in" Command="{Binding SignInCommand}" IsDefault="True" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
-        </StackPanel>
-      </TabItem>
-      <TabItem Header="QR code">
+      <TabItem Header="Steam app (QR)">
         <StackPanel Spacing="10" Margin="0,12,0,0" HorizontalAlignment="Center">
           <Border Background="White" Padding="8" CornerRadius="4" Width="264" Height="264">
             <Image Source="{Binding QrImage}" Stretch="Uniform" />
           </Border>
           <TextBlock Text="{Binding QrStatus}" TextWrapping="Wrap" MaxWidth="380" TextAlignment="Center" />
           <CheckBox Content="Remember me on this computer" IsChecked="{Binding Remember}" HorizontalAlignment="Center" />
+        </StackPanel>
+      </TabItem>
+      <TabItem Header="Password">
+        <StackPanel Spacing="10" Margin="0,12,0,0">
+          <TextBox PlaceholderText="Steam account name" Text="{Binding Username}" AutomationProperties.Name="Account name" />
+          <TextBox PlaceholderText="Password" PasswordChar="•" Text="{Binding Password}" AutomationProperties.Name="Password" />
+          <CheckBox Content="Remember me on this computer" IsChecked="{Binding Remember}" />
+          <Button Content="Sign in" Command="{Binding SignInCommand}" IsDefault="True" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
         </StackPanel>
       </TabItem>
     </TabControl>

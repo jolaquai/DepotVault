@@ -30,7 +30,9 @@ switch (scenario)
         foreach (var page in shell.Pages)
         {
             shell.CurrentPage = page;
+            page.OnActivated();
             Pump();
+            Thread.Sleep(300);
             Save(window, page.Title.ToLowerInvariant());
         }
         break;

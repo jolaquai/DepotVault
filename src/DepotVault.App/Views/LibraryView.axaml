@@ -3,5 +3,34 @@
              xmlns:vm="using:DepotVault.App.ViewModels"
              x:Class="DepotVault.App.Views.LibraryView"
              x:DataType="vm:LibraryViewModel">
-  <TextBlock Classes="h1" Text="{Binding Title}" />
+  <Grid ColumnDefinitions="320,20,*">
+    <DockPanel Grid.Column="0">
+      <TextBlock DockPanel.Dock="Top" Classes="h1" Text="Library" Margin="0,0,0,12" />
+      <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,12">
+        <ComboBox ItemsSource="{Binding InstalledApps}" SelectedItem="{Binding SelectedInstalled}" PlaceholderText="Pick an installed game" HorizontalAlignment="Stretch" />
+        <Grid ColumnDefinitions="*,8,Auto">
+          <TextBox Grid.Column="0" Text="{Binding AddAppId}" PlaceholderText="or enter an App ID" />
+          <Button Grid.Column="2" Content="Add" Command="{Binding AddAppCommand}" />
+        </Grid>
+        <TextBlock Text="{Binding StatusText}" Classes="muted" TextWrapping="Wrap" IsVisible="{Binding StatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      </StackPanel>
+      <TextBlock DockPanel.Dock="Top" IsVisible="{Binding IsEmpty}" TextWrapping="Wrap" Classes="muted"
+                 Text="No games yet. Add a game above, then import its manifest history from SteamDB (see Help for a walkthrough)." />
+      <ListBox ItemsSource="{Binding Apps}" SelectedItem="{Binding SelectedApp}">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:AppItemViewModel">
+            <StackPanel Spacing="2" Margin="0,4">
+              <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+              <TextBlock Classes="muted" FontSize="12">
+                <Run Text="Active: " /><Run Text="{Binding ActiveVersion}" />
+                <Run Text=" · " /><Run Text="{Binding VersionCount}" /><Run Text=" versions" />
+              </TextBlock>
+              <TextBlock Classes="muted" FontSize="12" Text="{Binding SizeText}" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </DockPanel>
+    <ContentControl Grid.Column="2" Content="{Binding Detail}" />
+  </Grid>
 </UserControl>

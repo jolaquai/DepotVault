@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 23 - Library screen + app detail (step 22 interactive check pending)
+- **Current step:** 24 - Downloads screen (step 22 interactive check pending)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 411ff8b (parent of the step commit)
+- **Last synced commit:** c5bddce (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -248,7 +248,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Progress:** dialog done (Account tab, QR tab with live Steam challenge URL rendered via QRCoder, inline Steam Guard prompt for email/device code/mobile confirm, remember-me). Verified headless: `UiSnap login` renders all states and a real QR; `UiSnap autologin` signs in from a saved token and the shell shows the account. Pending (user, interactive): sign in through the dialog via password and via QR scan.
 - **Commit:** `add login dialog`
 
-### 23. Library screen + app detail `[ ]`
+### 23. Library screen + app detail `[x]`
 
 - **Files:** `src/DepotVault.App/Views/LibraryView.axaml`, `AppDetailView.axaml`, view models
 - **Do:** apps list (icon, name, installed version, version count, total/unique size). App detail: depot selection (filter-matched default), manifest history grid (date, manifest ID, label, downloaded?), versions list (label, date, manifests, unique size, active badge) with Switch, Launch (`steam://run/<appid>`), Open folder, Verify, Delete (unlink only), Edit label/notes.
@@ -324,6 +324,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 18: ACF patching uses an own span-preserving `VdfDocument` (edits value spans in place, inserts missing keys with sibling indentation) since SteamKit2 `KeyValue` re-serializes the whole file; `libraryfolders.vdf` still uses `KeyValue`. Verified read-only against the real install: 16 ACFs round-trip byte-exact.
 - 2026-10-08 - Step 19: adoption loads the installed manifests (ACF `InstalledDepots`) to tell manifest-owned from foreign files; no foreign files on the same volume = one directory rename, otherwise owned files move individually and foreign files stay. Cross-volume adoption counts as a copy and goes through the copy rule. Per-app install state (`InstallState`: mode, version, placed files with size/mtime/link kind) lives in `apps/<appid>.json`; leaving per-file mode deletes unchanged placed files and stages changed independent copies. Foreign files written into a junctioned version dir are moved into a real install dir (per-file mode) on the next switch. ACF `buildid` is written from `SwitchRequest.AcfBuildId` (caller passes the app's current public build so Steam sees no pending update); `InstalledDepots` gets the target manifests. `AppRecord.ForceStrategy` (junction/hardlink/symlink/copy) is honored here already (UI in step 29).
 - 2026-10-08 - Step 21: added `Core/Vault.cs` composition root (all services + queue/runner/resolver wiring) and `Core/Logging/FileLoggerProvider.cs`; DI registers `Vault` and page VMs. Shell is `Views/ShellWindow.axaml`. GUI verification uses `tools/DepotVault.UiSnap` (Avalonia headless + Skia, seeds a temp data dir, renders pages/scenarios to PNG) because the desktop must not be driven while the user is using it; `dotnet run --project tools/DepotVault.UiSnap -- <outDir> [dataDir] [scenario]`.
+- 2026-10-08 - Step 22 follow-up: QR login is the default tab and starts when the dialog opens (no password typed into DepotVault); a browser login cannot replace it because Steam web logins only yield web-audience tokens, while CM logon needs a client refresh token. Step 23: no app icons in v1 (would need CDN image fetching); apps are added from installed Steam games or by App ID. History download picks, per selected depot, the newest imported manifest not newer than the chosen row. Switch uses a placeholder `ISwitchPromptsFactory` that declines prompts until step 27. Verified with `UiSnap pages` and `UiSnap library-actions`.
 
 ## Open questions
 

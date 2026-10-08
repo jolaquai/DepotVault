@@ -67,9 +67,11 @@ public partial class LoginViewModel(Vault vault) : ObservableObject, IGuardPromp
 
     partial void OnSelectedTabChanged(int value)
     {
-        if (value == 1)
+        if (value == 0)
             _ = StartQrAsync();
     }
+
+    public void OnOpened() => _ = StartQrAsync();
 
     private bool CanSignIn() => !IsBusy && !string.IsNullOrWhiteSpace(Username) && !string.IsNullOrEmpty(Password);
 

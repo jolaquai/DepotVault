@@ -14,6 +14,12 @@ public partial class LoginDialog : Window
             vm.CloseRequested += ok => Close(ok);
     }
 
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+        (DataContext as LoginViewModel)?.OnOpened();
+    }
+
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
