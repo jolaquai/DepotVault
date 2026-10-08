@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 13 - Content index
+- **Current step:** 14 - Dedupe sharing in pipeline
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 832f61b (parent of the step commit)
+- **Last synced commit:** fc575ba (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -177,7 +177,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet test --solution DepotVault.slnx`
 - **Commit:** `add library model`
 
-### 13. Content index `[ ]`
+### 13. Content index `[x]`
 
 - **Files:** `src/DepotVault.Core/Library/ContentIndex.cs`, tests
 - **Do:** key `(Sha1 as 20-byte struct, long size)` -> list of `FileRef(versionId, relPath)`. Built in memory from saved manifests at startup (no disk hashing). Implements `IContentIndex`. Respect hardlink limit (1023 on Windows): stop sharing beyond it.
