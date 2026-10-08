@@ -43,16 +43,15 @@ Written 2026-10-08 when work moved from the user's Windows machine to a cloud se
 - Dialogs: `AppDetailViewModel` calls the `AppDialogs` coordinator (`Services/AppDialogs.cs`) directly (import, mutable review, switch report); new dialogs derive from `Views/DialogWindow` with a VM implementing `IDialogViewModel`.
 - Step 25 tutorial screenshots: deferred to the user (local). `TutorialViewModel` loads `Assets/tutorial/step1.png`..`step4.png` if present; just drop the files in.
 - Settings UI (step 26) reloads from `Vault.Settings.Current` on page activation, so a remembered copy choice written by the step 27 dialog shows up there without extra wiring.
-- Step 29: when a job fails with `ManifestUnavailableException`, mark the matching `AppRecord.History` entry `Unavailable` (jobs only carry `Error` text today; add an error kind). `AppRecord.ForceStrategy` already works in the switcher and needs UI.
 - Core composition root is `src/DepotVault.Core/Vault.cs`; UI gets everything through it via DI.
 
 ## Status
 
-- **State:** in-progress
-- **Current step:** 29 - Hardening + tests (step 22 interactive check pending)
+- **State:** implemented; open items are user-side only (step 22 interactive sign-in check, step 25 tutorial screenshots)
+- **Current step:** none (all steps done except the step 22 interactive check)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 745307d (parent of HEAD)
+- **Last synced commit:** 410a853 (parent of HEAD)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -329,11 +328,12 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Progress:** verified with `UiSnap mutable`: two hardlinked versions with saved manifests/state, pending-review banner shown for a self-heal candidate, the first switch opened the review (3 candidates with reasons), `saves/slot1.sav` set to Isolate via bulk select, `config/settings.ini` to Share, a `*.log` pattern added; after save the switch ran (junction): Isolate file link count 1, Share and undecided files link count 2; rules persisted, reviewed flag set, candidates cleared.
 - **Commit:** `add mutable files dialog`
 
-### 29. Hardening + tests `[ ]`
+### 29. Hardening + tests `[x]`
 
-- **Files:** `tests/DepotVault.Tests/*`, logging config
+- **Files:** `tests/DepotVault.Tests/*`, `src/DepotVault.Core/Download/JobErrors.cs`, `DownloadJob.cs`, `DownloadQueue.cs`, `Vault.cs`, `Logging/FileLoggerProvider.cs`, `src/DepotVault.App/App.axaml.cs`, `AppDetailView.axaml`, `HelpView.axaml`
 - **Do:** error paths (CDN failures, purged manifests, token expiry, disk full), `ILogger` file sink review, tests for parser, linking, dedupe heal, ACF patch, switcher revert. Anti-cheat/DRM: per-app "force strategy" override (copy still opt-in). Document that Steam "verify integrity" reverts a switched game.
 - **Verify:** `dotnet build DepotVault.slnx` and `dotnet test --solution DepotVault.slnx`
+- **Progress:** build clean, 84 passed, 2 skipped (DPAPI Windows-only, reflink needs btrfs/xfs/ReFS). All UiSnap scenarios re-run; force strategy persists from the new Advanced picker.
 - **Commit:** `harden error paths and add tests`
 
 ## Risks
@@ -370,6 +370,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 26: settings apply immediately (no Save button). Toggling read-only protection applies/removes it across all versions (`Vault.ApplyReadOnlyProtection`); toggling ACF lock re-locks/unlocks the ACF of every switched (non-adopted active) app (`Vault.ApplyAcfLock`). A library root can only be removed while no version lives in it (`Vault.RemoveRoot`); Steam-library suggestions are offered with one-click add. "Show walkthrough when importing" is the inverse of `TutorialDontShowAgain`. UiSnap `Seed` now registers its root in `settings.json` like a real download would; UiSnap scenario `settings` added.
 - 2026-10-08 - Step 27: `SwitchPrompts` (real `ISwitchPrompts`, marshals to the UI thread since the switcher calls prompts after `ConfigureAwait(false)`) replaces `DeclineSwitchPrompts`. Steam-running dialog polls every second off the UI thread and closes itself when Steam exits. `Vault.IsSteamRunning` is the switcher test hook. Fixes found on the way: `Settings.Changed` theme handler now posts to the UI thread (a remembered copy choice saves settings from a pool thread); installed-manifest source fails fast when not signed in and the manifest is not cached (an offline SteamKit job timed out as a cancellation, so no report was shown). `DialogService.Showing` lets UiSnap capture dialogs; UiSnap `Pump` posts a no-op so headless `DispatcherTimer`s get promoted. First end-to-end run of the Linux switch path (dir symlink + revert) passed.
 - 2026-10-08 - Step 28: candidates come from all saved manifests of the app (`MutableFileScanner.ScanApp`) plus a stat-only integrity scan for "changed since linked". The review opens (and is awaited) before the first switch and before the first download that could dedupe against an existing version; app detail shows a banner while self-heal candidates are pending and refreshes on `Vault.HealCompleted`. Per-file choices are stored as exact rules, pattern rules (globs) are edited in the dialog; per-file rules that equal what a pattern gives are not stored. Explicit "Not decided" cannot override a pattern. Import, review and switch-report events on `AppDetailViewModel` were replaced by direct `AppDialogs` calls. Also fixed: read-only protection now clears the flag on files marked Share; the download queue sets `Error`/`FinishedUtc` before publishing `Failed`/`Done` (a reader saw `Failed` with no error; flaky `FailureIsRecordedAndRetryable`). UiSnap `Seed` marks the sample app reviewed; UiSnap scenario `mutable` added.
+- 2026-10-08 - Step 29: jobs carry `JobErrorKind` (`JobErrors.Classify`: purged manifest, depot access denied, disk full via ENOSPC/ERROR_DISK_FULL, network, Steam timeout, other) with a user-facing message; a purged manifest marks the matching history entry unavailable (`AppRecord.MarkUnavailable`); network/timeout failures resume automatically on the next sign-in. Token expiry was already covered (session lost re-opens sign-in). File logger survives `UnauthorizedAccessException`; unhandled AppDomain/task/UI exceptions are logged. Force strategy picker under Advanced in app detail (copy there is an explicit opt-in). Steam verify/update behavior documented in app detail and Help (Help also shows the log folder). New tests: error classification, queue error kind, history marking, file logger, forced copy/hardlink strategies, missing-file switch report. Parser, linking, heal, ACF patch and switcher revert were already covered.
 
 ## Open questions
 

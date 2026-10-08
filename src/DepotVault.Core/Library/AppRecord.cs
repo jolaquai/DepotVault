@@ -88,6 +88,20 @@ public sealed class AppRecord : ISchemaVersioned
         ReviewCandidates?.RemoveAll(c => string.Equals(c, pattern, StringComparison.OrdinalIgnoreCase));
     }
 
+    public bool MarkUnavailable(uint depotId, ulong manifestId)
+    {
+        var changed = false;
+        foreach (var h in History ?? [])
+        {
+            if (h.DepotId == depotId && h.ManifestId == manifestId && !h.Unavailable)
+            {
+                h.Unavailable = true;
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
     public bool IsExcluded(string relPath, IReadOnlyList<string> globalGlobs)
     {
         if (GetDecision(relPath) == MutableDecision.Share)

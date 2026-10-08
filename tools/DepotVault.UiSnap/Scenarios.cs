@@ -94,6 +94,9 @@ internal static class Scenarios
                 d.SelectedVersion.Label = "Renamed";
                 pump();
                 Console.WriteLine($"Label persisted: {vault.Library.Find(d.SelectedVersion.Id).Label}");
+                d.StrategyIndex = 3;
+                Console.WriteLine($"Force strategy persisted: {vault.Apps.Get(480000).ForceStrategy}");
+                window.Height = 1700;
                 save(window, "library-actions");
                 break;
             }

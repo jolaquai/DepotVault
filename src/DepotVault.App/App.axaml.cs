@@ -28,6 +28,7 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             _services = ConfigureServices(AppPaths.CreateDefault());
+            HookUnhandledExceptions(_services.GetRequiredService<ILoggerFactory>().CreateLogger("Unhandled"));
             var vault = _services.GetRequiredService<Vault>();
             ApplyTheme(vault.Settings.Current.Theme);
             vault.Settings.Changed += s => Dispatcher.UIThread.Post(() => ApplyTheme(s.Theme));
@@ -56,6 +57,17 @@ public partial class App : Application
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<HelpViewModel>();
         return services.BuildServiceProvider();
+    }
+
+    private static void HookUnhandledExceptions(ILogger log)
+    {
+        AppDomain.CurrentDomain.UnhandledException += (_, e) => log.LogCritical(e.ExceptionObject as Exception, "Unhandled exception (terminating: {Terminating})", e.IsTerminating);
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            log.LogError(e.Exception, "Unobserved task exception");
+            e.SetObserved();
+        };
+        Dispatcher.UIThread.UnhandledException += (_, e) => log.LogError(e.Exception, "Unhandled UI exception");
     }
 
     private bool _loginOpen;

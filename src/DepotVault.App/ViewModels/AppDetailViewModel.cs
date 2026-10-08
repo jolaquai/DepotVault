@@ -143,6 +143,20 @@ public partial class AppDetailViewModel : ObservableObject, IDisposable
     public bool HasHistory => History.Count > 0;
     public bool HasAdopted => _vault.Library.GetApp(AppId)?.AdoptedVersionId is not null;
     public int PendingReviewCount => _app?.ReviewCandidates?.Count ?? 0;
+    public IReadOnlyList<string> StrategyOptions { get; } = ["Automatic (recommended)", "Whole-folder link", "Hardlinks", "Symbolic links", "Copy files (full disk space)"];
+    private static readonly string[] StrategyValues = [null, "junction", "hardlink", "symlink", "copy"];
+    private bool _loadingStrategy;
+
+    [ObservableProperty]
+    private int strategyIndex;
+
+    partial void OnStrategyIndexChanged(int value)
+    {
+        if (_loadingStrategy || _app is null)
+            return;
+        _app.ForceStrategy = StrategyValues[Math.Clamp(value, 0, StrategyValues.Length - 1)];
+        _vault.Apps.Save(_app);
+    }
     public bool HasPendingReview => PendingReviewCount > 0;
 
     public void OnActivated()
@@ -189,6 +203,9 @@ public partial class AppDetailViewModel : ObservableObject, IDisposable
         }
         OnPropertyChanged(nameof(HasAdopted));
         OnPropertyChanged(nameof(PendingReviewCount));
+        _loadingStrategy = true;
+        StrategyIndex = Math.Max(0, Array.IndexOf(StrategyValues, _app.ForceStrategy?.Trim().ToLowerInvariant() is { Length: > 0 } f ? f : null));
+        _loadingStrategy = false;
         OnPropertyChanged(nameof(HasPendingReview));
         UpdateJobStatus();
     }

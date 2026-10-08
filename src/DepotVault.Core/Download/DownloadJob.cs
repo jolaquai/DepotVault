@@ -22,6 +22,7 @@ public sealed class DownloadJob
     public string TargetVersionId { get; set; }
     public JobState State { get; set; }
     public string Error { get; set; }
+    public JobErrorKind ErrorKind { get; set; }
     public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
     public DateTime FinishedUtc { get; set; }
     public JobCounters Counters { get; set; } = new();

@@ -262,4 +262,55 @@ public class SwitcherTests
         Assert.Equal(Big, File.ReadAllBytes(Path.Combine(env.InstallDir, "data.pak")));
         Assert.Empty(new IntegrityChecker(env.Lib).Scan(v3));
     }
+
+    [Fact]
+    public async Task ForcedCopyStrategyPlacesIndependentFilesWithoutAsking()
+    {
+        using var env = new Env();
+        var v2 = await env.Download(2);
+        env.Apps.Get(10).ForceStrategy = "copy";
+        var report = await env.Switch(v2);
+
+        Assert.True(report.Success, string.Join("; ", report.Failures));
+        Assert.Equal(InstallMode.PerFile, report.Mode);
+        Assert.False(LinkStrategy.IsDirectoryLink(env.InstallDir));
+        Assert.DoesNotContain(LinkKind.Hardlink, report.Links.Keys);
+        Assert.DoesNotContain(LinkKind.Symlink, report.Links.Keys);
+        Assert.Equal(0, env.Prompts.CopyPrompts);
+        Assert.Equal(1u, LinkStrategy.CreateForCurrentPlatform().GetFileIdentity(Path.Combine(env.InstallDir, "game.exe")).LinkCount);
+        Assert.Equal("v2", env.Read("game.exe"));
+    }
+
+    [Fact]
+    public async Task ForcedHardlinkStrategyAvoidsJunctionAndSymlinks()
+    {
+        using var env = new Env();
+        var v2 = await env.Download(2);
+        var caps = env.Linker.Capabilities.Get(env.Root);
+        Assert.SkipUnless(caps.Hardlink && !caps.Reflink, "Needs hardlinks without reflinks");
+        env.Apps.Get(10).ForceStrategy = "hardlink";
+        var report = await env.Switch(v2);
+
+        Assert.True(report.Success, string.Join("; ", report.Failures));
+        Assert.Equal(InstallMode.PerFile, report.Mode);
+        Assert.True(report.Links[LinkKind.Hardlink] > 0);
+        Assert.DoesNotContain(LinkKind.Symlink, report.Links.Keys);
+        Assert.Equal("fresh", env.Read("new.txt"));
+    }
+
+    [Fact]
+    public async Task MissingLibraryFileIsReportedWithPath()
+    {
+        using var env = new Env();
+        var v2 = await env.Download(2);
+        env.Apps.Get(10).ForceStrategy = "hardlink";
+        var missing = Path.Combine(env.Lib.GetVersionDir(v2), "new.txt");
+        File.Delete(missing);
+        var report = await env.Switch(v2);
+
+        Assert.False(report.Success);
+        var f = Assert.Single(report.Failures);
+        Assert.Equal(missing, f.Path);
+        Assert.Equal("v2", env.Read("game.exe"));
+    }
 }

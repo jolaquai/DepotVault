@@ -4,12 +4,26 @@
              x:Class="DepotVault.App.Views.HelpView"
              x:DataType="vm:HelpViewModel">
   <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-    <StackPanel Spacing="10" MaxWidth="760" HorizontalAlignment="Left">
+    <StackPanel Spacing="10" MaxWidth="760" HorizontalAlignment="Left" Margin="0,0,16,16">
       <TextBlock Classes="h1" Text="{Binding Title}" />
+
       <TextBlock Classes="h2" Text="Getting old versions" />
       <TextBlock TextWrapping="Wrap"
                  Text="Steam only tells DepotVault about the current build of a game. Older builds are found through SteamDB: copy a depot's manifest list there and import it into DepotVault, then download any manifest from the game's history." />
       <Button Content="Show the SteamDB import walkthrough" Command="{Binding ShowTutorialCommand}" />
+
+      <TextBlock Classes="h2" Text="Switching versions" Margin="0,8,0,0" />
+      <TextBlock TextWrapping="Wrap"
+                 Text="Switching points the game's Steam install folder at a version in the library, using links where possible so nothing is copied. The first switch takes over the current install as the &quot;Original&quot; version; Revert puts it back exactly as it was. Steam must be closed while switching." />
+      <TextBlock TextWrapping="Wrap"
+                 Text="Steam does not know about switched versions. &quot;Verify integrity of game files&quot; and Steam updates put the current build back into the install folder. DepotVault marks a switched install as the current build and sets it to update only on launch, so Steam leaves it alone until a new build is released; the app manifest lock in Settings adds to that. After a verify or an update, simply switch again. The stored versions are not affected." />
+
+      <TextBlock Classes="h2" Text="Troubleshooting" Margin="0,8,0,0" />
+      <TextBlock TextWrapping="Wrap"
+                 Text="A manifest marked as purged is no longer served by Steam and cannot be downloaded. If a game refuses to start after switching (some anti-cheat or DRM systems reject linked files), pick a different file placement under Advanced in the game's detail view." />
+      <TextBlock TextWrapping="Wrap"><Run Text="Logs are written to " /><Run Text="{Binding LogsDir}" FontFamily="{DynamicResource MonospaceFontFamily}" /></TextBlock>
+      <Button Content="Open log folder" Command="{Binding OpenLogsCommand}" />
+      <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" IsVisible="{Binding StatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

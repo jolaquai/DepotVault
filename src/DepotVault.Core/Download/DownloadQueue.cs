@@ -94,6 +94,7 @@ public sealed class DownloadQueue : IDisposable
                 return;
             job.State = JobState.Queued;
             job.Error = null;
+            job.ErrorKind = JobErrorKind.None;
         }
         Changed(job);
         Pump();
@@ -226,7 +227,7 @@ public sealed class DownloadQueue : IDisposable
             {
                 if (job.State == JobState.Running)
                 {
-                    job.Error = ex.Message;
+                    (job.ErrorKind, job.Error) = JobErrors.Classify(ex);
                     job.FinishedUtc = DateTime.UtcNow;
                     job.State = JobState.Failed;
                 }

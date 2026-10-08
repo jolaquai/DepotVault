@@ -41,7 +41,7 @@ public sealed class FileLoggerProvider : ILoggerProvider
                     File.Move(path, Path.Combine(_dir, "depotvault.1.log"), true);
                 await File.AppendAllTextAsync(path, sb.ToString()).ConfigureAwait(false);
             }
-            catch (IOException) { }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
     }
 

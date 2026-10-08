@@ -82,6 +82,16 @@
         <Button Content="Verify" Command="{Binding VerifyCommand}" />
         <Button Content="Delete" Command="{Binding DeleteCommand}" />
       </WrapPanel>
+      <TextBlock Classes="muted" TextWrapping="Wrap"
+                 Text="Steam's &quot;Verify integrity of game files&quot; and Steam updates put the current build back into a switched install. Switch again afterwards; the stored versions are not affected." />
+
+      <TextBlock Classes="h2" Text="Advanced" />
+      <Grid ColumnDefinitions="Auto,12,260">
+        <TextBlock Grid.Column="0" Text="How to place files when switching" VerticalAlignment="Center" />
+        <ComboBox Grid.Column="2" ItemsSource="{Binding StrategyOptions}" SelectedIndex="{Binding StrategyIndex}" HorizontalAlignment="Stretch" />
+      </Grid>
+      <TextBlock Classes="muted" TextWrapping="Wrap"
+                 Text="Some anti-cheat or DRM systems reject linked files. Change this only if the game refuses to start after switching. Copy uses the full size of the game for every switch." />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

@@ -42,6 +42,7 @@ public sealed class Vault : IAsyncDisposable, IDisposable
         var runner = new DepotJobRunner(Manifests, CreateChunkSource, Resolver, () => Settings.Current.MaxConcurrentChunks, new BandwidthLimiter(() => Settings.Current.BandwidthLimitBytesPerSecond));
         Queue = new DownloadQueue(new AtomicJsonStore<QueueDocument>(paths.Queue, JsonContext.Default.QueueDocument), runner, () => Settings.Current.MaxConcurrentJobs);
         Queue.JobChanged += OnJobChanged;
+        Session.StateChanged += OnSessionStateChanged;
     }
 
     public AppPaths Paths { get; }
@@ -204,8 +205,25 @@ public sealed class Vault : IAsyncDisposable, IDisposable
                     ReadOnly.ApplyApp(v.AppId);
                 break;
             case JobState.Failed:
-                _log.LogWarning("Job {Depot}:{Manifest} -> {Version} failed: {Error}", job.DepotId, job.ManifestId, job.TargetVersionId, job.Error);
+                _log.LogWarning("Job {Depot}:{Manifest} -> {Version} failed ({Kind}): {Error}", job.DepotId, job.ManifestId, job.TargetVersionId, job.ErrorKind, job.Error);
+                if (job.ErrorKind == JobErrorKind.ManifestUnavailable)
+                {
+                    var app = Apps.Get(job.AppId);
+                    if (app.MarkUnavailable(job.DepotId, job.ManifestId))
+                        Apps.Save(app);
+                }
                 break;
+        }
+    }
+
+    private void OnSessionStateChanged(SessionState state)
+    {
+        if (state != SessionState.LoggedOn)
+            return;
+        foreach (var j in Queue.Jobs)
+        {
+            if (j.State == JobState.Failed && JobErrors.IsTransient(j.ErrorKind))
+                Queue.Resume(j.Id);
         }
     }
 

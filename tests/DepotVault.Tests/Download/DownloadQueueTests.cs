@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using DepotVault.Core.Download;
 using DepotVault.Core.Persistence;
+using DepotVault.Core.Steam;
 
 namespace DepotVault.Tests.Download;
 
@@ -139,5 +140,25 @@ public class DownloadQueueTests
         var c = q.Enqueue(1, 12, 102, "v1");
         q.Move(c.Id, 0);
         Assert.Equal([c.Id, a.Id, b.Id], q.Jobs.Select(j => j.Id));
+    }
+
+    [Fact]
+    public async Task FailureKindIsClassifiedAndClearedOnResume()
+    {
+        using var dir = new TempDir();
+        var runner = new GateRunner { Fail = j => new ManifestUnavailableException(j.DepotId, j.ManifestId, "CDN returned 404") };
+        using var store = Store(dir);
+        using var q = new DownloadQueue(store, runner, () => 1);
+        q.Start();
+        var a = q.Enqueue(1, 10, 100, "v1");
+        await Until(() => a.State == JobState.Failed);
+        Assert.Equal(JobErrorKind.ManifestUnavailable, a.ErrorKind);
+        Assert.Contains("100", a.Error);
+        runner.Fail = null;
+        q.Resume(a.Id);
+        Assert.Equal(JobErrorKind.None, a.ErrorKind);
+        await Until(() => a.State == JobState.Running);
+        runner.Release(a.Id);
+        await Until(() => a.State == JobState.Done);
     }
 }
