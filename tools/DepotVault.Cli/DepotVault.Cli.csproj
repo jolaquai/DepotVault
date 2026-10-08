@@ -2,20 +2,15 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <IsPackable>false</IsPackable>
+    <AssemblyName>dvcli</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="xunit.v3" />
-    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="QRCoder" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\DepotVault.Core\DepotVault.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Using Include="Xunit" />
   </ItemGroup>
 
 </Project>

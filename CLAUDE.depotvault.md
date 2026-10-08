@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 5 - Steam session + auth
+- **Current step:** 5 - Steam session + auth (manual verify pending), continuing with 6
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** a0b0307 (parent of the step commit)
+- **Last synced commit:** 72d3126 (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -118,11 +118,12 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet test --solution DepotVault.slnx`
 - **Commit:** `add secret store`
 
-### 5. Steam session + auth `[ ]`
+### 5. Steam session + auth `[~]`
 
 - **Files:** `src/DepotVault.Core/Steam/SteamSession.cs`, `IGuardPrompt.cs`, `QrLogin.cs`
 - **Do:** `SteamClient` + `CallbackManager` on a dedicated pump thread; async wrappers via `TaskCompletionSource`. Credentials flow with `SteamAuthentication.BeginAuthSessionViaCredentialsAsync` and an `IAuthenticator` bridging to `IGuardPrompt` (email code, TOTP, mobile confirm polling). QR flow via `BeginAuthSessionViaQRAsync`, refresh on `ChallengeURLChanged`. `ShouldRememberPassword = true`, persist token via `SecretStore`, log in with token on start, fall back to prompt on expiry. Reconnect with backoff, re-auth via token.
 - **Verify:** `dotnet build DepotVault.slnx`; manual: console harness or test login against a real account logs in and reuses token on second run (note result in Progress).
+- **Progress:** code + 	ools/DepotVault.Cli harness (dvcli login|login-qr|whoami|logout) built. Manual check pending: user runs dvcli login once, then dvcli whoami must log in via saved token.
 - **Commit:** `add steam session and auth`
 
 ### 6. PICS depot metadata `[ ]`
@@ -307,6 +308,7 @@ Every root JSON object carries a schema version field with a migration hook.
 
 - 2026-10-08 - Solution is `DepotVault.slnx` (SDK 11 default format), all verify commands updated. SDK 11.0.100-preview.6; Microsoft.Extensions.* and ProtectedData pinned to the matching preview.6 packages. Avalonia 12.1.3, SteamKit2 3.4.0, xunit.v3 4.0.1. Added root `global.json` with MTP test runner.
 - 2026-10-08 - Step 2: `JsonContext` deferred to step 3 (an empty source-gen context does not compile). Per-depot manifests stored as `versions/<versionId>/<depotId>.manifest.bin` since a version can merge several depots.
+- 2026-10-08 - Added `tools/DepotVault.Cli` (`dvcli`) console harness for manual Steam verification (steps 5, 7, 9, 14). User logs in once; later checks reuse the saved token. Steps whose only open item is a Steam-backed manual check stay `[~]` until verified and work continues with the next step.
 
 ## Open questions
 
