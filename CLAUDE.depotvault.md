@@ -7,7 +7,7 @@
 You are resuming work described by this file. This file is the single source of truth for progress.
 
 1. Read this entire file, then read every file listed in **Key files** and in the current step.
-2. Run `git status` and `git log --oneline -5`. The working tree should be clean and `HEAD` should match the commit recorded in **Status**. If it does, this file is up to date; trust it and continue at the current step without re-auditing.
+2. Run `git status` and `git log --oneline -5`. The working tree should be clean and the parent of `HEAD` (`HEAD~1`) should match **Last synced commit** in **Status** (a commit cannot record its own hash, so each commit records its parent). If it does, this file is up to date; trust it and continue at the current step without re-auditing.
 3. If the tree is dirty or `HEAD` does not match, reconcile first: figure out what happened, fix this file, commit the fix, then continue.
 4. Work the first step that is not `[x]`. One step at a time.
 5. **Every step ends with exactly one commit that contains both the code change and the update to this file.** They are never committed separately. This is what makes the file trustworthy.
@@ -21,13 +21,39 @@ You are resuming work described by this file. This file is the single source of 
 
 Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[-]` dropped.
 
+## Handoff notes (read before continuing)
+
+Written 2026-10-08 when work moved from the user's Windows machine to a cloud session.
+
+**User's standing instructions (verbatim intent, apply to everything):**
+- Implement the plan. No walls of comments. No comments explaining the how and why of code, no historical analysis of why code is the way it is. Follow the comment rules in rule 12; most code has zero comments.
+- Chunked commits, one per step (rule 5). Single-line, terse commit messages. No attribution trailers.
+- Anything unclear: ask the user instead of guessing.
+
+**Environment constraints from now on:**
+- The session runs in the cloud (assume Linux, no display, no Steam client). Never launch the real app window and never drive a desktop. UI verification is only via headless rendering: `tools/DepotVault.UiSnap` (Avalonia.Headless + Skia). Run `dotnet run --project tools/DepotVault.UiSnap -- <outDir> [dataDir] [scenario]`, then read the PNGs. Scenarios: `pages` (default), `login`, `autologin`, `library-actions`, `downloads-live`; add new ones in `tools/DepotVault.UiSnap/Scenarios.cs`. Scenarios must stay synchronous and pump the dispatcher via the `pump`/`Wait` helpers; awaiting on the UI sync context deadlocks headless runs. Always run UiSnap with an external timeout (it seeds `Seed.cs` data into the data dir on first run).
+- SDK: .NET 11 preview (`11.0.100-preview.6.26359.118` was used; any newer net11 SDK is fine). Install it if missing (`dotnet-install.sh --channel 11.0 --quality preview`). `Microsoft.Extensions.*` and `ProtectedData` are pinned to `11.0.0-preview.6.26359.118` in `Directory.Packages.props`; bump them together with the SDK if restore fails.
+- Steam: the user's saved refresh token is DPAPI-protected on their Windows machine and is not available in the cloud. Do not ask for credentials and never type passwords anywhere. Steam-backed checks (`tools/DepotVault.Cli` = `dvcli`, UiSnap `autologin`/`downloads-live`) cannot run in the cloud: mark such checks as pending-user in the step's `Progress:` line, log it in Deviations, and continue with the next step.
+- Linux is now the native test platform: run `dotnet test --solution DepotVault.slnx` early. Windows-only tests skip there; the Linux link strategy (`Linking/Linux/*`: `statx` offsets, `FICLONE`, `link()`, directory symlinks) and Unix file-mode code have never been executed yet, so failures there are real bugs to fix (log fixes in Deviations).
+- The `plan-step.ps1` helper used earlier lived in a temp scratchpad and is gone; update this file by hand (mark step state, `Current step`, `Last synced commit` = parent of the commit you are about to make, Deviations).
+- Line endings: CRLF for everything except `*.sh`, Dockerfiles, git hooks (`.gitattributes` has `* text=auto eol=crlf`). Files written by shell redirection or generators must be checked.
+
+**Open threads for the remaining steps:**
+- Step 22 still needs one interactive check by the user on their machine (sign in through the dialog via password and via QR scan). Leave it `[~]`.
+- `AppDetailViewModel` raises `ImportRequested` (step 25), `MutableReviewRequested` (step 28) and `SwitchFailed` (step 27); nothing subscribes yet. Wire them where the dialogs are created (e.g. in `LibraryViewModel.OnSelectedAppChanged` or a shell-level dialog coordinator using `DialogService`).
+- Step 27 replaces the placeholder `DeclineSwitchPrompts` (`src/DepotVault.App/Services/SwitchPrompts.cs`, registered in `App.axaml.cs`) with real dialogs implementing `ISwitchPrompts` (Steam-running wait, copy consent with remember-my-choice).
+- Step 25: the Library empty state and Help page should link to the tutorial; Help page is still a placeholder (`HelpViewModel`/`HelpView`).
+- Step 26: settings UI binds to `Vault.Settings.Current` and must call `SettingsStore.Save()`; theme changes already apply live via `Settings.Changed` in `App.axaml.cs`. Library roots live only in `Settings.LibraryRoots`.
+- Step 29: when a job fails with `ManifestUnavailableException`, mark the matching `AppRecord.History` entry `Unavailable` (jobs only carry `Error` text today; add an error kind). `AppRecord.ForceStrategy` already works in the switcher and needs UI.
+- Core composition root is `src/DepotVault.Core/Vault.cs`; UI gets everything through it via DI.
+
 ## Status
 
 - **State:** in-progress
 - **Current step:** 25 - Import dialog + tutorial (step 22 interactive check pending)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** fbd71db (parent of the step commit)
+- **Last synced commit:** 12f3290 (parent of HEAD)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -72,6 +98,8 @@ DepotVault.slnx
 src/DepotVault.Core/   Steam/ Download/ Library/ Linking/ SteamInstall/ Import/ Persistence/
 src/DepotVault.App/    Avalonia UI
 tests/DepotVault.Tests/
+tools/DepotVault.Cli/     dvcli: Steam harness (login, app, manifest, download, lib-download)
+tools/DepotVault.UiSnap/  headless UI renderer for verification
 ```
 
 Persistence root: `Environment.SpecialFolder.ApplicationData/DepotVault/`
