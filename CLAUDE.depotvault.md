@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 22 - Login dialog
+- **Current step:** 23 - Library screen + app detail (step 22 interactive check pending)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** a6107d0 (parent of the step commit)
+- **Last synced commit:** 411ff8b (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -240,11 +240,12 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet build DepotVault.slnx`; run app, shell opens (use the `run` skill).
 - **Commit:** `add app shell`
 
-### 22. Login dialog `[ ]`
+### 22. Login dialog `[~]`
 
 - **Files:** `src/DepotVault.App/Views/LoginDialog.axaml`, `ViewModels/LoginViewModel.cs`
 - **Do:** tabs Credentials / QR (render challenge URL as QR image, refresh on change), Guard prompt (email/TOTP/mobile confirm), "remember me", auto token login on start.
 - **Verify:** run app, log in via both flows, restart auto-logs in.
+- **Progress:** dialog done (Account tab, QR tab with live Steam challenge URL rendered via QRCoder, inline Steam Guard prompt for email/device code/mobile confirm, remember-me). Verified headless: `UiSnap login` renders all states and a real QR; `UiSnap autologin` signs in from a saved token and the shell shows the account. Pending (user, interactive): sign in through the dialog via password and via QR scan.
 - **Commit:** `add login dialog`
 
 ### 23. Library screen + app detail `[ ]`

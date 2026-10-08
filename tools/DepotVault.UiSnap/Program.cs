@@ -35,7 +35,7 @@ switch (scenario)
         }
         break;
     default:
-        await Scenarios.RunAsync(scenario, services, shell, window, Save, Pump);
+        Scenarios.Run(scenario, services, shell, window, Save, Pump);
         break;
 }
 window.Close();

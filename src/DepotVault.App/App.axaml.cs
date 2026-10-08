@@ -34,6 +34,7 @@ public partial class App : Application
             var shell = _services.GetRequiredService<ShellViewModel>();
             desktop.MainWindow = new ShellWindow { DataContext = shell };
             desktop.ShutdownRequested += (_, _) => Shutdown();
+            shell.SignInRequested += () => _ = ShowLoginAsync();
             shell.Initialize();
         }
         base.OnFrameworkInitializationCompleted();
@@ -52,6 +53,23 @@ public partial class App : Application
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<HelpViewModel>();
         return services.BuildServiceProvider();
+    }
+
+    private bool _loginOpen;
+
+    private async Task ShowLoginAsync()
+    {
+        if (_loginOpen)
+            return;
+        _loginOpen = true;
+        try
+        {
+            await Services.GetRequiredService<DialogService>().ShowAsync<bool>(new LoginDialog { DataContext = new LoginViewModel(Services.GetRequiredService<Vault>()) });
+        }
+        finally
+        {
+            _loginOpen = false;
+        }
     }
 
     private void ApplyTheme(AppTheme theme) => RequestedThemeVariant = theme switch

@@ -1,0 +1,44 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DepotVault.App.ViewModels"
+        x:Class="DepotVault.App.Views.LoginDialog"
+        x:DataType="vm:LoginViewModel"
+        Title="Sign in to Steam" Width="460" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="20" Spacing="12">
+    <TabControl SelectedIndex="{Binding SelectedTab}" IsEnabled="{Binding !IsGuardVisible}">
+      <TabItem Header="Account">
+        <StackPanel Spacing="10" Margin="0,12,0,0">
+          <TextBox PlaceholderText="Steam account name" Text="{Binding Username}" AutomationProperties.Name="Account name" />
+          <TextBox PlaceholderText="Password" PasswordChar="•" Text="{Binding Password}" AutomationProperties.Name="Password" />
+          <CheckBox Content="Remember me on this computer" IsChecked="{Binding Remember}" />
+          <Button Content="Sign in" Command="{Binding SignInCommand}" IsDefault="True" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+        </StackPanel>
+      </TabItem>
+      <TabItem Header="QR code">
+        <StackPanel Spacing="10" Margin="0,12,0,0" HorizontalAlignment="Center">
+          <Border Background="White" Padding="8" CornerRadius="4" Width="264" Height="264">
+            <Image Source="{Binding QrImage}" Stretch="Uniform" />
+          </Border>
+          <TextBlock Text="{Binding QrStatus}" TextWrapping="Wrap" MaxWidth="380" TextAlignment="Center" />
+          <CheckBox Content="Remember me on this computer" IsChecked="{Binding Remember}" HorizontalAlignment="Center" />
+        </StackPanel>
+      </TabItem>
+    </TabControl>
+
+    <Border IsVisible="{Binding IsGuardVisible}" Padding="12" CornerRadius="4" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+      <StackPanel Spacing="8">
+        <TextBlock Classes="h2" Text="Steam Guard" />
+        <TextBlock Text="{Binding GuardText}" TextWrapping="Wrap" />
+        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsGuardCodeVisible}">
+          <TextBox Width="160" Text="{Binding GuardCode}" PlaceholderText="Code" AutomationProperties.Name="Steam Guard code" />
+          <Button Content="Submit" Command="{Binding SubmitGuardCommand}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <TextBlock Text="{Binding ErrorText}" Foreground="#D13438" TextWrapping="Wrap" IsVisible="{Binding ErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" />
+    <Button Content="Cancel" Command="{Binding CancelCommand}" HorizontalAlignment="Right" />
+  </StackPanel>
+</Window>
