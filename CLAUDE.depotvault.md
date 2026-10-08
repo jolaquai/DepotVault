@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 3 - Settings model
+- **Current step:** 4 - Secret store
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** f5a92e3 (parent of the step commit)
+- **Last synced commit:** 9ce2e09 (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -104,7 +104,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet test --solution DepotVault.slnx`
 - **Commit:** `add atomic json store`
 
-### 3. Settings model `[ ]`
+### 3. Settings model `[x]`
 
 - **Files:** `src/DepotVault.Core/Persistence/Settings.cs`, tests
 - **Do:** `Settings`: library roots per volume; `MaxConcurrentJobs` (1), `MaxConcurrentChunks` (16), optional bandwidth cap; `CopyFallback` enum (Unset default); dedupe enabled (true), global exclusion globs (default empty list; user-managed), read-only protection (false), integrity check on startup (true); ACF lock (true); tutorial seen/"don't show again"; theme. Loaded/saved through `AtomicJsonStore`.
