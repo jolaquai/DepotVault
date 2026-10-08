@@ -90,8 +90,6 @@ public sealed class DownloadQueue : IDisposable
             job = _doc.Jobs.Find(j => j.Id == id);
             if (job is null || job.State is not (JobState.Paused or JobState.Failed))
                 return;
-            if (job.Cts is not null)
-                return;
             job.State = JobState.Queued;
             job.Error = null;
             job.ErrorKind = JobErrorKind.None;

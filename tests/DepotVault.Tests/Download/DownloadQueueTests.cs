@@ -161,4 +161,51 @@ public class DownloadQueueTests
         runner.Release(a.Id);
         await Until(() => a.State == JobState.Done);
     }
+
+    private sealed class SlowStopRunner : IJobRunner
+    {
+        public readonly TaskCompletionSource Stop = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public readonly TaskCompletionSource Finish = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public int Starts;
+        public int Stopping;
+
+        public async Task RunAsync(DownloadJob job, CancellationToken ct)
+        {
+            if (Interlocked.Increment(ref Starts) > 1)
+            {
+                await Finish.Task;
+                return;
+            }
+            try
+            {
+                await Task.Delay(Timeout.Infinite, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                Volatile.Write(ref Stopping, 1);
+                await Stop.Task;
+                throw;
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ResumeWhilePausedRunIsStillStoppingIsNotLost()
+    {
+        using var dir = new TempDir();
+        var runner = new SlowStopRunner();
+        using var store = Store(dir);
+        using var q = new DownloadQueue(store, runner, () => 1);
+        q.Start();
+        var a = q.Enqueue(1, 10, 100, "v1");
+        await Until(() => a.State == JobState.Running);
+        q.Pause(a.Id);
+        await Until(() => Volatile.Read(ref runner.Stopping) == 1);
+        q.Resume(a.Id);
+        Assert.Equal(JobState.Queued, a.State);
+        runner.Stop.SetResult();
+        await Until(() => Volatile.Read(ref runner.Starts) == 2 && a.State == JobState.Running);
+        runner.Finish.SetResult();
+        await Until(() => a.State == JobState.Done);
+    }
 }

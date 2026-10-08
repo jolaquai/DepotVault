@@ -51,7 +51,7 @@ Written 2026-10-08 when work moved from the user's Windows machine to a cloud se
 - **Current step:** none (all steps done except the step 22 interactive check)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 6cc1d2f (parent of HEAD)
+- **Last synced commit:** ec4e639 (parent of HEAD)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -392,6 +392,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 30: first CI run executed the Linux `FICLONE` path (btrfs, xfs) and Windows block cloning on ReFS for the first time; all passed without code changes.
 - 2026-10-08 - Step 31 added at the user's request: macOS support without packaging. Keychain is the default token store with automatic file fallback instead of a settings toggle (user asked for an opinion; a toggle would only offer the weaker option). `SecretStore(path, interactive)`: the app and dvcli allow Keychain UI prompts, tests do not.
 - 2026-10-08 - Step 31 CI fixes: HFS+ stores mtimes with 1-second resolution, so a same-size edit within the same second as linking is invisible to the stat-only integrity scan (accepted limitation of the stat design; real edits happen later). Tests that edit right after linking now wait via `FsTime.WaitUntilNewerAsync` until the volume can tell timestamps apart (instant on APFS/NTFS/ext4/btrfs/xfs/ReFS). UiSnap `library-actions` selects depots explicitly because the default selection depends on the host OS.
+- 2026-10-08 - CI run 5 (windows-ntfs) exposed a real queue race: `Resume` was silently ignored while a paused (or failed) run was still winding down (`Cts` not yet cleared), so a quick Pause then Resume left the job paused. `Resume` now always re-queues; `Pump` starts it once the old run has exited. Regression test `ResumeWhilePausedRunIsStillStoppingIsNotLost` holds the stop phase open, so it fails deterministically without the fix.
 
 ## Open questions
 
