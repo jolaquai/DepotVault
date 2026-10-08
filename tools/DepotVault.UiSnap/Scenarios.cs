@@ -12,7 +12,7 @@ internal static class Scenarios
 {
     public static void Prepare(string scenario, string dataDir)
     {
-        if (scenario != "switch-dialogs")
+        if (scenario is not ("switch-dialogs" or "mutable"))
             return;
         var home = Path.Combine(dataDir, "home");
         var steamApps = Path.Combine(home, ".steam", "steam", "steamapps");
@@ -243,11 +243,7 @@ internal static class Scenarios
                     pump();
                 }
 
-                var cache = Path.Combine(vault.Paths.Root, "manifest-cache", "480001_1234567890123456789.manifest.bin");
-                Directory.CreateDirectory(Path.GetDirectoryName(cache));
-                var installed = new SteamKit2.DepotManifest { DepotID = 480001, ManifestGID = 1234567890123456789, Files = [], CreationTime = DateTime.UtcNow };
-                installed.Files.Add(new SteamKit2.DepotManifest.FileData("game.bin", new byte[20], 0, 9, System.Security.Cryptography.SHA1.HashData("installed"u8), null, false, 0));
-                installed.SaveToFile(cache);
+                CacheInstalledManifest(vault);
                 var installDir = d.InstallText[(d.InstallText.IndexOf(" at ") + 4)..];
                 d.SwitchCommand.Execute(null);
                 Wait(() => !d.IsBusy, pump, 30);
@@ -276,9 +272,86 @@ internal static class Scenarios
                 Console.WriteLine($"Steam wait after cancel: {waitExit.Result}");
                 break;
             }
+            case "mutable":
+            {
+                var dialogs = services.GetRequiredService<DialogService>();
+                Window shown = null;
+                dialogs.Showing += w => shown = w;
+                vault.IsSteamRunning = () => false;
+                CacheInstalledManifest(vault);
+                var versions = vault.Library.VersionsFor(480000);
+                var older = versions.First(v => v.Label == "Pre-patch");
+                var newer = versions.First(v => v.Id != older.Id);
+                (string Rel, string Content)[] files = [("game.exe", "exe"), (Path.Combine("config", "settings.ini"), "a=1"), (Path.Combine("saves", "slot1.sav"), "save")];
+                foreach (var (rel, content) in files)
+                {
+                    var src = Path.Combine(vault.Library.GetVersionDir(newer), rel);
+                    Directory.CreateDirectory(Path.GetDirectoryName(src));
+                    File.WriteAllText(src, content);
+                    var dst = Path.Combine(vault.Library.GetVersionDir(older), rel);
+                    Directory.CreateDirectory(Path.GetDirectoryName(dst));
+                    vault.Strategy.TryHardlink(src, dst);
+                }
+                foreach (var v in versions)
+                {
+                    var dir = vault.Library.GetVersionDir(v);
+                    var m = new SteamKit2.DepotManifest { DepotID = 480001, ManifestGID = v.Manifests[0].ManifestId, Files = [], CreationTime = DateTime.UtcNow };
+                    var snaps = new List<DepotVault.Core.Library.FileSnapshot>();
+                    foreach (var rel in files.Select(f => f.Rel).Append("data.pak"))
+                    {
+                        var full = Path.Combine(dir, rel);
+                        var sha = System.Security.Cryptography.SHA1.HashData(File.ReadAllBytes(full));
+                        var info = new FileInfo(full);
+                        m.Files.Add(new SteamKit2.DepotManifest.FileData(rel, new byte[20], 0, (ulong)info.Length, sha, null, false, 0));
+                        snaps.Add(new DepotVault.Core.Library.FileSnapshot { RelPath = rel, DepotId = 480001, Size = info.Length, LastWriteUtc = info.LastWriteTimeUtc, Sha1 = Convert.ToHexStringLower(sha), Link = rel == "data.pak" ? DepotVault.Core.Library.LinkKind.None : DepotVault.Core.Library.LinkKind.Hardlink });
+                    }
+                    m.SaveToFile(vault.Paths.ManifestFile(v.Id, 480001));
+                    DepotVault.Core.Library.VersionStateStore.Save(vault.Paths.VersionStateFile(v.Id), new DepotVault.Core.Library.VersionState { Files = snaps });
+                }
+                var app = vault.Apps.Get(480000);
+                app.MutableReviewed = false;
+                app.ReviewCandidates.Add("game.exe");
+
+                var lib = services.GetRequiredService<LibraryViewModel>();
+                shell.CurrentPage = lib;
+                lib.OnActivated();
+                pump();
+                var d = lib.Detail;
+                Console.WriteLine($"Pending review: {d.PendingReviewCount}");
+                save(window, "mutable-pending");
+                d.SelectedVersion = d.Versions.First(v => v.Id == older.Id);
+                d.SwitchCommand.Execute(null);
+                Wait(() => shown is MutableFilesDialog, pump, 10);
+                var mvm = (MutableFilesViewModel)shown.DataContext;
+                Wait(() => !mvm.IsLoading, pump, 10);
+                foreach (var i in mvm.Items)
+                    Console.WriteLine($"  {i.RelPath}: {i.Reasons} [{i.Decision}]");
+                mvm.Items.First(i => i.RelPath.StartsWith("saves")).IsSelected = true;
+                mvm.IsolateSelectedCommand.Execute(null);
+                mvm.Items.First(i => i.RelPath.EndsWith("settings.ini")).Decision = DepotVault.Core.Library.MutableDecision.Share;
+                mvm.NewPattern = "*.log";
+                mvm.NewPatternDecisionIndex = 1;
+                mvm.AddPatternCommand.Execute(null);
+                save(shown, "mutable-review");
+                mvm.SaveCommand.Execute(null);
+                Wait(() => d.StatusText is { } st && (st.StartsWith("Switched") || st.Contains("problem") || st.Contains("failed")), pump, 30);
+                Console.WriteLine($"Switch: {d.StatusText}; rules: {string.Join(", ", app.MutableRules.Select(r => $"{r.Pattern}={r.Decision}"))}; reviewed={app.MutableReviewed}; pending={d.PendingReviewCount}");
+                foreach (var (rel, _) in files)
+                    Console.WriteLine($"  {rel}: link count {vault.Strategy.GetFileIdentity(Path.Combine(vault.Library.GetVersionDir(older), rel)).LinkCount}");
+                break;
+            }
             default:
                 throw new ArgumentException($"Unknown scenario {name}");
         }
+    }
+
+    private static void CacheInstalledManifest(Vault vault)
+    {
+        var cache = Path.Combine(vault.Paths.Root, "manifest-cache", "480001_1234567890123456789.manifest.bin");
+        Directory.CreateDirectory(Path.GetDirectoryName(cache));
+        var installed = new SteamKit2.DepotManifest { DepotID = 480001, ManifestGID = 1234567890123456789, Files = [], CreationTime = DateTime.UtcNow };
+        installed.Files.Add(new SteamKit2.DepotManifest.FileData("game.bin", new byte[20], 0, 9, System.Security.Cryptography.SHA1.HashData("installed"u8), null, false, 0));
+        installed.SaveToFile(cache);
     }
 
     public static void Wait(Func<bool> condition, Action pump, int seconds)

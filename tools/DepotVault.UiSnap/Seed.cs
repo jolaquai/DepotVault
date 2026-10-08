@@ -14,6 +14,7 @@ internal static class Seed
         app.Name = "Sample Game";
         app.InstallDir = "Sample Game";
         app.PublicBuildId = 9876543;
+        app.MutableReviewed = true;
         app.MetadataFetchedUtc = DateTime.UtcNow;
         app.Depots =
         [

@@ -1,0 +1,84 @@
+<v:DialogWindow xmlns="https://github.com/avaloniaui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:v="using:DepotVault.App.Views"
+                xmlns:vm="using:DepotVault.App.ViewModels"
+                x:Class="DepotVault.App.Views.Dialogs.MutableFilesDialog"
+                x:DataType="vm:MutableFilesViewModel"
+                Title="Files that change while playing" Width="940" Height="700" MinWidth="640" MinHeight="480"
+                WindowStartupLocation="CenterOwner">
+  <DockPanel Margin="20">
+    <TextBlock DockPanel.Dock="Top" Classes="h2" Margin="0,0,0,8">
+      <Run Text="Files that change while playing: " /><Run Text="{Binding AppName}" />
+    </TextBlock>
+    <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,10">
+      <TextBlock TextWrapping="Wrap"
+                 Text="These files look like settings, saves, logs or caches. Versions in the library can share one copy of a file, so decide what should happen when the game writes to it:" />
+      <TextBlock TextWrapping="Wrap"><Run Text="Share" FontWeight="SemiBold" /><Run Text=": all versions use the same file, so changes (for example your settings) carry across versions." /></TextBlock>
+      <TextBlock TextWrapping="Wrap"><Run Text="Isolate" FontWeight="SemiBold" /><Run Text=": each version keeps its own copy (reflink where the drive supports it, otherwise a real copy), so changes stay with that version." /></TextBlock>
+      <TextBlock Classes="muted" TextWrapping="Wrap" Text="Not decided files are shared like any other file. Closing this window without saving leaves everything undecided." />
+    </StackPanel>
+
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
+      <Button Content="Save decisions" Command="{Binding SaveCommand}" Classes="accent" />
+      <Button Content="Cancel" Command="{Binding CancelCommand}" IsCancel="True" />
+    </StackPanel>
+
+    <Expander DockPanel.Dock="Bottom" Header="Rules by pattern" Margin="0,10,0,0" HorizontalAlignment="Stretch">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="muted" TextWrapping="Wrap" Text="A pattern applies to every matching file, including files added by later versions. * matches any characters and ? one character; a pattern without a folder also matches file names anywhere. Examples: saves/*, *.cfg." />
+        <ItemsControl ItemsSource="{Binding Patterns}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:MutableRuleItemViewModel">
+              <Grid ColumnDefinitions="*,100,Auto" Margin="0,2">
+                <TextBlock Grid.Column="0" Text="{Binding Pattern}" VerticalAlignment="Center" FontFamily="{DynamicResource MonospaceFontFamily}" />
+                <TextBlock Grid.Column="1" Text="{Binding DecisionText}" VerticalAlignment="Center" />
+                <Button Grid.Column="2" Content="Remove" Command="{Binding $parent[Window].((vm:MutableFilesViewModel)DataContext).RemovePatternCommand}" CommandParameter="{Binding}" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Grid ColumnDefinitions="*,8,120,8,Auto">
+          <TextBox Grid.Column="0" Text="{Binding NewPattern}" PlaceholderText="Pattern, e.g. saves/*" AutomationProperties.Name="Pattern" />
+          <ComboBox Grid.Column="2" ItemsSource="{Binding PatternDecisionOptions}" SelectedIndex="{Binding NewPatternDecisionIndex}" HorizontalAlignment="Stretch" />
+          <Button Grid.Column="4" Content="Add rule" Command="{Binding AddPatternCommand}" />
+        </Grid>
+      </StackPanel>
+    </Expander>
+
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,8,Auto" Margin="0,0,0,6">
+      <TextBox Grid.Column="0" Text="{Binding FilterText}" PlaceholderText="Filter by path or pattern" AutomationProperties.Name="Filter" />
+      <WrapPanel Grid.Column="2" ItemSpacing="6" LineSpacing="6">
+        <Button Content="Select all" Command="{Binding SelectAllCommand}" />
+        <Button Content="Select none" Command="{Binding SelectNoneCommand}" />
+        <Button Content="Share selected" Command="{Binding ShareSelectedCommand}" />
+        <Button Content="Isolate selected" Command="{Binding IsolateSelectedCommand}" />
+        <Button Content="Clear selected" Command="{Binding ClearSelectedCommand}" />
+      </WrapPanel>
+    </Grid>
+    <TextBlock DockPanel.Dock="Top" Classes="muted" Text="{Binding Summary}" Margin="0,0,0,6" />
+    <Panel>
+      <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsLoading}" VerticalAlignment="Top" />
+      <DataGrid ItemsSource="{Binding Items}" AutoGenerateColumns="False" CanUserResizeColumns="True" GridLinesVisibility="Horizontal" IsVisible="{Binding !IsLoading}">
+        <DataGrid.Columns>
+          <DataGridTemplateColumn Header="" Width="44" x:DataType="vm:MutableFileItemViewModel">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="vm:MutableFileItemViewModel">
+                <CheckBox IsChecked="{Binding IsSelected}" HorizontalAlignment="Center" />
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTextColumn Header="File" Binding="{Binding RelPath}" x:DataType="vm:MutableFileItemViewModel" IsReadOnly="True" Width="300" />
+          <DataGridTemplateColumn Header="Decision" Width="150" x:DataType="vm:MutableFileItemViewModel">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="vm:MutableFileItemViewModel">
+                <ComboBox ItemsSource="{Binding $parent[Window].((vm:MutableFilesViewModel)DataContext).DecisionOptions}" SelectedIndex="{Binding DecisionIndex}" HorizontalAlignment="Stretch" Margin="2" />
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTextColumn Header="Size" Binding="{Binding Size}" x:DataType="vm:MutableFileItemViewModel" IsReadOnly="True" Width="90" />
+          <DataGridTextColumn Header="Why" Binding="{Binding Reasons}" x:DataType="vm:MutableFileItemViewModel" IsReadOnly="True" Width="*" />
+        </DataGrid.Columns>
+      </DataGrid>
+    </Panel>
+  </DockPanel>
+</v:DialogWindow>

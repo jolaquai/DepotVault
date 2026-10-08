@@ -92,20 +92,23 @@ public partial class AppDetailViewModel : ObservableObject, IDisposable
 {
     private readonly Vault _vault;
     private readonly DialogService _dialogs;
+    private readonly AppDialogs _appDialogs;
     private readonly ISwitchPromptsFactory _prompts;
     private readonly ILogger<AppDetailViewModel> _log;
     private readonly DispatcherTimer _timer;
     private AppRecord _app;
 
-    public AppDetailViewModel(uint appId, Vault vault, DialogService dialogs, ISwitchPromptsFactory prompts, ILogger<AppDetailViewModel> log)
+    public AppDetailViewModel(uint appId, Vault vault, DialogService dialogs, AppDialogs appDialogs, ISwitchPromptsFactory prompts, ILogger<AppDetailViewModel> log)
     {
         AppId = appId;
         _vault = vault;
         _dialogs = dialogs;
+        _appDialogs = appDialogs;
         _prompts = prompts;
         _log = log;
         _timer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, (_, _) => UpdateJobStatus());
         _vault.Queue.JobChanged += OnJobChanged;
+        _vault.HealCompleted += OnHealCompleted;
         Refresh();
     }
 
@@ -139,10 +142,8 @@ public partial class AppDetailViewModel : ObservableObject, IDisposable
 
     public bool HasHistory => History.Count > 0;
     public bool HasAdopted => _vault.Library.GetApp(AppId)?.AdoptedVersionId is not null;
-
-    public event Action ImportRequested;
-    public event Action MutableReviewRequested;
-    public event Action<SwitchReport> SwitchFailed;
+    public int PendingReviewCount => _app?.ReviewCandidates?.Count ?? 0;
+    public bool HasPendingReview => PendingReviewCount > 0;
 
     public void OnActivated()
     {
@@ -187,7 +188,22 @@ public partial class AppDetailViewModel : ObservableObject, IDisposable
             _ = UpdateUniqueSizeAsync(item);
         }
         OnPropertyChanged(nameof(HasAdopted));
+        OnPropertyChanged(nameof(PendingReviewCount));
+        OnPropertyChanged(nameof(HasPendingReview));
         UpdateJobStatus();
+    }
+
+    private void OnHealCompleted(uint appId, HealReport report)
+    {
+        if (appId == AppId)
+            Dispatcher.UIThread.Post(Refresh);
+    }
+
+    private async Task<bool> ReviewAsync()
+    {
+        var saved = await _appDialogs.ShowMutableReviewAsync(AppId);
+        Refresh();
+        return saved;
     }
 
     private bool OwnsApp(uint appId) => false;
@@ -272,16 +288,16 @@ public partial class AppDetailViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void DownloadCurrent()
+    private async Task DownloadCurrentAsync()
     {
         var manifests = Depots.Where(d => d.IsSelected && d.Depot.CurrentManifestId != 0).Select(d => (d.DepotId, d.Depot.CurrentManifestId)).ToList();
-        Enqueue(manifests, $"Build {_app.PublicBuildId}", DateTime.UtcNow);
+        await EnqueueAsync(manifests, $"Build {_app.PublicBuildId}", DateTime.UtcNow);
     }
 
     private bool CanDownloadHistory() => SelectedHistory is not null;
 
     [RelayCommand(CanExecute = nameof(CanDownloadHistory))]
-    private void DownloadHistory()
+    private async Task DownloadHistoryAsync()
     {
         var pick = SelectedHistory.Entry;
         var manifests = new List<(uint, ulong)> { (pick.DepotId, pick.ManifestId) };
@@ -294,18 +310,20 @@ public partial class AppDetailViewModel : ObservableObject, IDisposable
             else
                 manifests.Add((d.DepotId, match.ManifestId));
         }
-        Enqueue(manifests, pick.Label, pick.DateUtc);
+        await EnqueueAsync(manifests, pick.Label, pick.DateUtc);
         if (missing.Count > 0)
             StatusText += $" No history imported for depot(s) {string.Join(", ", missing)}; they were left out.";
     }
 
-    private void Enqueue(List<(uint DepotId, ulong ManifestId)> manifests, string label, DateTime date)
+    private async Task EnqueueAsync(List<(uint DepotId, ulong ManifestId)> manifests, string label, DateTime date)
     {
         if (manifests.Count == 0)
         {
             StatusText = "Select at least one depot.";
             return;
         }
+        if (!_app.MutableReviewed && _vault.Settings.Current.DedupeEnabled && _vault.Library.VersionsFor(AppId).Any(v => v.IsComplete))
+            await ReviewAsync();
         try
         {
             var v = _vault.EnqueueVersion(AppId, manifests, label: label, manifestDateUtc: date);
@@ -331,7 +349,7 @@ public partial class AppDetailViewModel : ObservableObject, IDisposable
             return;
         }
         if (!_app.MutableReviewed)
-            MutableReviewRequested?.Invoke();
+            await ReviewAsync();
         IsBusy = true;
         StatusText = "Checking library integrity...";
         try
@@ -347,7 +365,7 @@ public partial class AppDetailViewModel : ObservableObject, IDisposable
             });
             StatusText = report.Canceled ? "Switch canceled." : report.Success ? $"Switched ({report.Mode})." : $"Switch finished with {report.Failures.Count} problem(s).";
             if (!report.Success && !report.Canceled)
-                SwitchFailed?.Invoke(report);
+                _ = _appDialogs.ShowSwitchReportAsync(report);
             Refresh();
         }
         catch (Exception ex)
@@ -377,7 +395,7 @@ public partial class AppDetailViewModel : ObservableObject, IDisposable
             var report = await _vault.CreateSwitcher(_prompts.Create()).RevertAsync(AppId, installed);
             StatusText = report.Canceled ? "Revert canceled." : report.Success ? "Reverted to the original install." : $"Revert finished with {report.Failures.Count} problem(s).";
             if (!report.Success && !report.Canceled)
-                SwitchFailed?.Invoke(report);
+                _ = _appDialogs.ShowSwitchReportAsync(report);
             Refresh();
         }
         catch (Exception ex)
@@ -405,8 +423,9 @@ public partial class AppDetailViewModel : ObservableObject, IDisposable
         {
             var report = await _vault.CheckAndHealAsync(AppId);
             StatusText = $"Verified. Restored {report.Restored.Count + report.Refetched.Count}, kept modified {report.KeptDiverged.Count}, failed {report.Failed.Count}.";
+            Refresh();
             if (report.HasNewDivergence)
-                MutableReviewRequested?.Invoke();
+                _ = ReviewAsync();
         }
         catch (Exception ex)
         {
@@ -442,10 +461,17 @@ public partial class AppDetailViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void Import() => ImportRequested?.Invoke();
+    private async Task ImportAsync()
+    {
+        var added = await _appDialogs.ShowImportAsync(AppId);
+        if (added == 0)
+            return;
+        Refresh();
+        StatusText = $"Imported {added} manifest(s).";
+    }
 
     [RelayCommand]
-    private void ReviewMutable() => MutableReviewRequested?.Invoke();
+    private Task ReviewMutableAsync() => ReviewAsync();
 
     private void Open(string target)
     {
@@ -463,5 +489,6 @@ public partial class AppDetailViewModel : ObservableObject, IDisposable
     {
         _timer.Stop();
         _vault.Queue.JobChanged -= OnJobChanged;
+        _vault.HealCompleted -= OnHealCompleted;
     }
 }

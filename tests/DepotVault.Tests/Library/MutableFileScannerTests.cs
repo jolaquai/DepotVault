@@ -66,4 +66,31 @@ public class MutableFileScannerTests
         Assert.True(policy.NeverShare(1)("a.tmp"));
         Assert.False(policy.NeverShare(1)(@"cfg\game.cfg"));
     }
+
+    [Fact]
+    public void ScanAppMergesAllVersionManifests()
+    {
+        using var dir = new TempDir();
+        var paths = new DepotVault.Core.Persistence.AppPaths(dir.Combine("data"));
+        using var lib = new LibraryIndex(paths);
+        var depot = new FakeDepot();
+        var a = lib.CreateVersion(7, dir.Combine("root"), [(70, 1ul)]);
+        var b = lib.CreateVersion(7, dir.Combine("root"), [(70, 2ul)]);
+        void Save(VersionRecord v, SteamKit2.DepotManifest m)
+        {
+            var file = paths.ManifestFile(v.Id, 70);
+            Directory.CreateDirectory(Path.GetDirectoryName(file));
+            m.SaveToFile(file);
+        }
+        Save(a, depot.Build(70, 1, 1024, ("game.ini", FakeDepot.Bytes("a")), ("bin.pak", FakeDepot.Bytes("p", 2000))));
+        Save(b, depot.Build(70, 2, 1024, ("game.ini", FakeDepot.Bytes("b")), (@"saves\s.bin", FakeDepot.Bytes("s"))));
+        var app = new AppRecord { AppId = 7 };
+        app.SetDecision("saves/*", MutableDecision.Isolate);
+
+        var c = MutableFileScanner.ScanApp(lib, app, rel => rel == "bin.pak");
+
+        Assert.Equal(["bin.pak", "game.ini", P(@"saves\s.bin")], c.Select(x => x.RelPath));
+        Assert.Equal(MutableReason.ModifiedSinceLink, c[0].Reasons);
+        Assert.Equal(MutableDecision.Isolate, c[2].Decision);
+    }
 }

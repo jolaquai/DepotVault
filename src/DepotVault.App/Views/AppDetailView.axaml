@@ -18,6 +18,14 @@
         <Button Content="Launch in Steam" Command="{Binding LaunchCommand}" />
         <Button Content="Revert to original install" Command="{Binding RevertCommand}" IsVisible="{Binding HasAdopted}" />
       </WrapPanel>
+      <Border IsVisible="{Binding HasPendingReview}" Padding="10" CornerRadius="4" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Grid.Column="0" VerticalAlignment="Center" TextWrapping="Wrap">
+            <Run Text="{Binding PendingReviewCount}" /><Run Text=" file(s) changed in the library since they were linked. Decide whether they should be shared or kept per version." />
+          </TextBlock>
+          <Button Grid.Column="1" Content="Review..." Command="{Binding ReviewMutableCommand}" Margin="8,0,0,0" />
+        </Grid>
+      </Border>
       <StackPanel Spacing="4" IsVisible="{Binding StatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
         <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" />
       </StackPanel>

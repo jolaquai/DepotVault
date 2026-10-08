@@ -16,8 +16,13 @@ public sealed class ReadOnlyProtection(LibraryIndex library, AppRepository apps,
         foreach (var f in VersionStateStore.Load(library.Paths.VersionStateFile(version.Id)).Files)
         {
             var full = Path.Combine(dir, f.RelPath);
-            if (!File.Exists(full) || app.GetDecision(f.RelPath) == MutableDecision.Share)
+            if (!File.Exists(full))
                 continue;
+            if (app.GetDecision(f.RelPath) == MutableDecision.Share)
+            {
+                FileUtil.SetReadOnly(full, false);
+                continue;
+            }
             if (f.Link != LinkKind.Hardlink && strategy.GetFileIdentity(full).LinkCount <= 1)
                 continue;
             FileUtil.SetReadOnly(full, true);

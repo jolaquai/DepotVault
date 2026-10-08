@@ -35,6 +35,13 @@ public sealed class AppDialogs(Vault vault, DialogService dialogs)
         return vm.Added;
     }
 
+    public async Task<bool> ShowMutableReviewAsync(uint appId)
+    {
+        var vm = new MutableFilesViewModel(appId, vault);
+        await dialogs.ShowAsync<object>(new MutableFilesDialog { DataContext = vm });
+        return vm.Saved;
+    }
+
     public Task ShowSwitchReportAsync(SwitchReport report) => dialogs.ShowAsync<object>(new SwitchReportDialog { DataContext = new SwitchReportViewModel(report, dialogs) });
 
     public Task ShowTutorialAsync(Window owner = null) => dialogs.ShowAsync<object>(new TutorialDialog { DataContext = new TutorialViewModel(vault.Settings) }, owner);

@@ -58,6 +58,23 @@ public static class MutableFileScanner
         return result.Values.OrderBy(c => c.RelPath, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
+    public static List<MutableCandidate> ScanApp(LibraryIndex library, AppRecord app, Func<string, bool> modifiedSinceLink = null)
+    {
+        var files = new Dictionary<string, DepotManifest.FileData>(StringComparer.OrdinalIgnoreCase);
+        foreach (var v in library.VersionsFor(app.AppId))
+        {
+            foreach (var m in v.Manifests)
+            {
+                var path = library.Paths.ManifestFile(v.Id, m.DepotId);
+                if (!File.Exists(path) || DepotManifest.LoadFromFile(path)?.Files is not { } list)
+                    continue;
+                foreach (var f in list)
+                    files.TryAdd(FilePlanner.NormalizeRelPath(f.FileName), f);
+            }
+        }
+        return Scan(files.Values, app, modifiedSinceLink);
+    }
+
     public static MutableReason Classify(string relPath, long size, EDepotFileFlag flags)
     {
         var reasons = MutableReason.None;

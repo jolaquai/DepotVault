@@ -136,20 +136,7 @@ public partial class LibraryViewModel : PageViewModel
     {
         Detail?.Dispose();
         Detail = value is null ? null : ActivatorUtilities.CreateInstance<AppDetailViewModel>(_services, value.AppId);
-        if (Detail is not { } d)
-            return;
-        d.ImportRequested += () => _ = ImportAsync(d);
-        d.SwitchFailed += r => _ = _dialogs.ShowSwitchReportAsync(r);
-        d.OnActivated();
-    }
-
-    private async Task ImportAsync(AppDetailViewModel d)
-    {
-        var added = await _dialogs.ShowImportAsync(d.AppId);
-        if (added == 0)
-            return;
-        d.Refresh();
-        d.StatusText = $"Imported {added} manifest(s).";
+        Detail?.OnActivated();
     }
 
     [RelayCommand]

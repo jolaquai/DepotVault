@@ -40,7 +40,7 @@ Written 2026-10-08 when work moved from the user's Windows machine to a cloud se
 
 **Open threads for the remaining steps:**
 - Step 22 still needs one interactive check by the user on their machine (sign in through the dialog via password and via QR scan). Leave it `[~]`.
-- `AppDetailViewModel` raises `MutableReviewRequested` (step 28); nothing subscribes yet. Wire it like `ImportRequested`/`SwitchFailed`: subscribed in `LibraryViewModel.OnSelectedAppChanged`, dialog created by the `AppDialogs` coordinator (`Services/AppDialogs.cs`). New dialogs derive from `Views/DialogWindow` with a VM implementing `IDialogViewModel`. Note `SwitchAsync` raises the review request and then continues without waiting; step 28 must await the dialog before switching on first review.
+- Dialogs: `AppDetailViewModel` calls the `AppDialogs` coordinator (`Services/AppDialogs.cs`) directly (import, mutable review, switch report); new dialogs derive from `Views/DialogWindow` with a VM implementing `IDialogViewModel`.
 - Step 25 tutorial screenshots: deferred to the user (local). `TutorialViewModel` loads `Assets/tutorial/step1.png`..`step4.png` if present; just drop the files in.
 - Settings UI (step 26) reloads from `Vault.Settings.Current` on page activation, so a remembered copy choice written by the step 27 dialog shows up there without extra wiring.
 - Step 29: when a job fails with `ManifestUnavailableException`, mark the matching `AppRecord.History` entry `Unavailable` (jobs only carry `Error` text today; add an error kind). `AppRecord.ForceStrategy` already works in the switcher and needs UI.
@@ -49,10 +49,10 @@ Written 2026-10-08 when work moved from the user's Windows machine to a cloud se
 ## Status
 
 - **State:** in-progress
-- **Current step:** 28 - Mutable-file review dialog (step 22 interactive check pending)
+- **Current step:** 29 - Hardening + tests (step 22 interactive check pending)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 70dd80b (parent of HEAD)
+- **Last synced commit:** 745307d (parent of HEAD)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -321,11 +321,12 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Progress:** verified with `UiSnap switch-dialogs` (fake Steam install via `HOME` override, `Vault.IsSteamRunning` hook): real switch from app detail showed the Steam-running dialog, continued once "Steam" exited, failed offline adoption and opened the report dialog; with a cached installed manifest the same switch succeeded (Linux dir symlink) and revert restored the original dir; copy consent returned allow+remember; cancelling the Steam wait returned false.
 - **Commit:** `add switch dialogs`
 
-### 28. Mutable-file review dialog `[ ]`
+### 28. Mutable-file review dialog `[x]`
 
-- **Files:** `src/DepotVault.App/Views/Dialogs/MutableFilesDialog.axaml`, view model
+- **Files:** `src/DepotVault.App/Views/Dialogs/MutableFilesDialog.axaml`, `ViewModels/MutableFilesViewModel.cs`, `ViewModels/AppDetailViewModel.cs`, `src/DepotVault.Core/Library/MutableFileScanner.cs`
 - **Do:** shown before the first switch/dedupe of an app and re-openable from app detail and after self-heal reports new divergences. Lists candidates from step 15 with a per-file/pattern Share/Isolate choice (bulk select), explanation that Share means settings carry across versions and Isolate means reflink/copy. Persist to `apps/<appid>.json`. Dismissing keeps files unreviewed (shared as normal).
 - **Verify:** run app, mark files, switch, confirm Isolate files are not hardlinks and Share files are.
+- **Progress:** verified with `UiSnap mutable`: two hardlinked versions with saved manifests/state, pending-review banner shown for a self-heal candidate, the first switch opened the review (3 candidates with reasons), `saves/slot1.sav` set to Isolate via bulk select, `config/settings.ini` to Share, a `*.log` pattern added; after save the switch ran (junction): Isolate file link count 1, Share and undecided files link count 2; rules persisted, reviewed flag set, candidates cleared.
 - **Commit:** `add mutable files dialog`
 
 ### 29. Hardening + tests `[ ]`
@@ -368,6 +369,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 25: tutorial ships text-only (user's call: no SteamDB screenshots from the cloud; they add `Assets/tutorial/step1..4.png` locally, loaded automatically when present). Dialogs are created by a new `AppDialogs` coordinator (single import dialog at a time; tutorial auto-opens over the import dialog unless "don't show again" is set). Import dialog takes a depot from the pasted SteamDB URL, the app's depot list, or a typed depot ID; rows can be unticked. Library empty state and Help page link to the tutorial. UiSnap scenario `import` added.
 - 2026-10-08 - Step 26: settings apply immediately (no Save button). Toggling read-only protection applies/removes it across all versions (`Vault.ApplyReadOnlyProtection`); toggling ACF lock re-locks/unlocks the ACF of every switched (non-adopted active) app (`Vault.ApplyAcfLock`). A library root can only be removed while no version lives in it (`Vault.RemoveRoot`); Steam-library suggestions are offered with one-click add. "Show walkthrough when importing" is the inverse of `TutorialDontShowAgain`. UiSnap `Seed` now registers its root in `settings.json` like a real download would; UiSnap scenario `settings` added.
 - 2026-10-08 - Step 27: `SwitchPrompts` (real `ISwitchPrompts`, marshals to the UI thread since the switcher calls prompts after `ConfigureAwait(false)`) replaces `DeclineSwitchPrompts`. Steam-running dialog polls every second off the UI thread and closes itself when Steam exits. `Vault.IsSteamRunning` is the switcher test hook. Fixes found on the way: `Settings.Changed` theme handler now posts to the UI thread (a remembered copy choice saves settings from a pool thread); installed-manifest source fails fast when not signed in and the manifest is not cached (an offline SteamKit job timed out as a cancellation, so no report was shown). `DialogService.Showing` lets UiSnap capture dialogs; UiSnap `Pump` posts a no-op so headless `DispatcherTimer`s get promoted. First end-to-end run of the Linux switch path (dir symlink + revert) passed.
+- 2026-10-08 - Step 28: candidates come from all saved manifests of the app (`MutableFileScanner.ScanApp`) plus a stat-only integrity scan for "changed since linked". The review opens (and is awaited) before the first switch and before the first download that could dedupe against an existing version; app detail shows a banner while self-heal candidates are pending and refreshes on `Vault.HealCompleted`. Per-file choices are stored as exact rules, pattern rules (globs) are edited in the dialog; per-file rules that equal what a pattern gives are not stored. Explicit "Not decided" cannot override a pattern. Import, review and switch-report events on `AppDetailViewModel` were replaced by direct `AppDialogs` calls. Also fixed: read-only protection now clears the flag on files marked Share; the download queue sets `Error`/`FinishedUtc` before publishing `Failed`/`Done` (a reader saw `Failed` with no error; flaky `FailureIsRecordedAndRetryable`). UiSnap `Seed` marks the sample app reviewed; UiSnap scenario `mutable` added.
 
 ## Open questions
 

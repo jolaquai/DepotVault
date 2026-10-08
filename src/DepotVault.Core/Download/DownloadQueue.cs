@@ -207,8 +207,8 @@ public sealed class DownloadQueue : IDisposable
             {
                 if (job.State == JobState.Running)
                 {
-                    job.State = JobState.Done;
                     job.FinishedUtc = DateTime.UtcNow;
+                    job.State = JobState.Done;
                 }
             }
         }
@@ -226,9 +226,9 @@ public sealed class DownloadQueue : IDisposable
             {
                 if (job.State == JobState.Running)
                 {
-                    job.State = JobState.Failed;
                     job.Error = ex.Message;
                     job.FinishedUtc = DateTime.UtcNow;
+                    job.State = JobState.Failed;
                 }
             }
         }
