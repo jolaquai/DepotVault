@@ -111,6 +111,35 @@ switch (args.FirstOrDefault())
         Console.WriteLine($"\nDone in {sw.Elapsed}. All file hashes verified against the manifest.");
         break;
     }
+    case "lib-download" when args.Length >= 5:
+    {
+        if (!await LogOnAsync())
+            return 1;
+        var dataDir = Path.GetFullPath(args[1]);
+        var root = Path.GetFullPath(args[2]);
+        var appId = uint.Parse(args[3]);
+        var refs = args[4].Split(',').Select(s => s.Split(':')).Select(p => (uint.Parse(p[0]), ulong.Parse(p[1]))).ToList();
+        using var lib = new DepotVault.Core.Library.LibraryIndex(new AppPaths(dataDir));
+        var strategy = DepotVault.Core.Linking.LinkStrategy.CreateForCurrentPlatform();
+        var index = new DepotVault.Core.Library.ContentIndex(lib, strategy);
+        index.Rebuild();
+        var deduper = new DepotVault.Core.Library.Deduper(lib, new DepotVault.Core.Linking.Linker(new DepotVault.Core.Linking.CapabilityCache(strategy)));
+        using var cdnClient = new CdnClient(session.Client);
+        var keys = new DepotKeyCache(session);
+        var pool = new CdnPool(session);
+        var runner = new DepotJobRunner(new ManifestService(session, keys, pool, cdnClient), id => new CdnChunkSource(id, pool, cdnClient, keys), new DepotVault.Core.Library.LibraryTargetResolver(lib, index, deduper), () => 16);
+        var version = lib.CreateVersion(appId, root, refs);
+        foreach (var (depotId, manifestId) in refs)
+        {
+            var job = new DownloadJob { AppId = appId, DepotId = depotId, ManifestId = manifestId, TargetVersionId = version.Id };
+            await runner.RunAsync(job, ct);
+            var c = job.Counters;
+            Console.WriteLine($"{version.Id} depot {depotId}: total {c.TotalBytes:N0}, downloaded {c.DownloadedBytes:N0}, written {c.WrittenBytes:N0}, deduped {c.DedupedBytes:N0}, reused {c.ReusedBytes:N0}");
+        }
+        Console.WriteLine($"Version {version.Id} unique size {lib.ComputeUniqueSize(version, strategy):N0} bytes");
+        lib.Flush();
+        break;
+    }
     default:
         Console.WriteLine("dvcli login | login-qr | whoami | logout | app <appid> | manifest <appid> <depotid> [manifestid] | download <appid> <depotid> <manifestid> <dir>");
         return 1;

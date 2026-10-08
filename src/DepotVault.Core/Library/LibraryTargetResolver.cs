@@ -3,21 +3,28 @@ using SteamKit2;
 
 namespace DepotVault.Core.Library;
 
-public sealed class LibraryTargetResolver(LibraryIndex library) : IDownloadTargetResolver
+public sealed class SharePolicy
 {
-    public Func<DownloadJob, VersionRecord, string, DownloadTarget, DownloadTarget> Customize { get; set; }
+    public Func<bool> Enabled { get; init; } = static () => true;
+    public Func<uint, Func<string, bool>> NeverShare { get; init; }
+    public Func<uint, Func<string, bool>> Isolate { get; init; }
+}
 
+public sealed class LibraryTargetResolver(LibraryIndex library, ContentIndex index = null, Deduper deduper = null, SharePolicy policy = null) : IDownloadTargetResolver
+{
     public DownloadTarget Resolve(DownloadJob job)
     {
         var version = library.Find(job.TargetVersionId) ?? throw new InvalidOperationException($"Version {job.TargetVersionId} not found.");
-        var dir = library.GetVersionDir(version);
-        var target = new DownloadTarget
+        var share = index is not null && deduper is not null && (policy?.Enabled() ?? true);
+        return new DownloadTarget
         {
-            VersionDir = dir,
+            VersionDir = library.GetVersionDir(version),
             ManifestPath = library.Paths.ManifestFile(version.Id, job.DepotId),
             Previous = FindPrevious(version, job.DepotId),
+            Index = share ? index : null,
+            Sharer = share ? deduper.ForVersion(policy?.Isolate?.Invoke(job.AppId)) : null,
+            NeverShare = share ? policy?.NeverShare?.Invoke(job.AppId) : null,
         };
-        return Customize?.Invoke(job, version, dir, target) ?? target;
     }
 
     public PreviousVersion FindPrevious(VersionRecord target, uint depotId)
@@ -44,5 +51,6 @@ public sealed class LibraryTargetResolver(LibraryIndex library) : IDownloadTarge
     {
         VersionStateStore.MergeDepot(library.Paths.VersionStateFile(job.TargetVersionId), job.DepotId, files);
         library.MarkDepotComplete(job.TargetVersionId, job.DepotId, job.ManifestId);
+        index?.AddManifest(job.TargetVersionId, manifest);
     }
 }

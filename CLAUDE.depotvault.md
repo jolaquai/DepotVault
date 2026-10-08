@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 14 - Dedupe sharing in pipeline
+- **Current step:** 15 - Mutable-file review
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** fc575ba (parent of the step commit)
+- **Last synced commit:** 0b5c26a (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -184,7 +184,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet test --solution DepotVault.slnx`
 - **Commit:** `add content index`
 
-### 14. Dedupe sharing in pipeline `[ ]`
+### 14. Dedupe sharing in pipeline `[x]`
 
 - **Files:** `src/DepotVault.Core/Library/Deduper.cs`, `Download/FilePlanner.cs`, tests
 - **Do:** replace the stub; on index hit (source verified intact, same volume) share target via reflink, else hardlink, else no share (fetch normally). Honor global exclusion globs and per-app mutable-file decisions (step 15): Isolate files never hardlinked (reflink or fetch/copy). Track "saved by dedupe" bytes.
@@ -316,6 +316,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 10: resume bitmaps live on `DownloadJob.Resume` (persisted via queue.json); `ResumeTracker` lives in `Download/ResumeState.cs`. Debounced saves got a max-wait (4x debounce) so continuous chunk progress cannot starve persistence.
 - 2026-10-08 - Step 11: reflink support on Windows detected via `FSCTL_GET_INTEGRITY_INFORMATION` (fails on non-ReFS) and integrity settings are mirrored onto the clone target. Linux file identity uses `statx` (arch-independent layout). Fallback logic lives in `Linker` + `LinkRules` in `VolumeCapabilities.cs`. Dev box has no ReFS/Dev Drive, so the reflink test is skipped here.
 - 2026-10-08 - Step 12: library roots are owned by `Settings.LibraryRoots` (single source); `library.json` holds apps (name, active/adopted version) and versions. Root suggestion is `<steam library>/DepotVault` (inside the library folder, guaranteed same volume). `LibraryTargetResolver` (download target + previous-version chunk diff) added here.
+- 2026-10-08 - Step 14: manual check used the same manifest (228988/6645201662696499616) for two library versions via `dvcli lib-download`; second version deduped 29,212,173 bytes with 0 downloaded. Share policy is injected into `LibraryTargetResolver` via `SharePolicy` (enabled flag, never-share predicate, isolate predicate); step 15 provides the per-app predicates. `PathGlob` (simple `*`/`?` matcher) added for exclusion globs.
 
 ## Open questions
 
