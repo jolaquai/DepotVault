@@ -33,9 +33,9 @@ jobs:
           - { name: windows-ntfs, os: windows-latest, fs: native, uisnap: true }
           - { name: windows-refs, os: windows-2025, fs: refs, uisnap: false }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 11.0.x
           dotnet-quality: preview
@@ -101,7 +101,7 @@ jobs:
 
       - name: Upload UI renders
         if: always() && matrix.uisnap
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: uisnap-${{ matrix.name }}
           path: uisnap/**/*.png

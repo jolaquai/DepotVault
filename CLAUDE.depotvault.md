@@ -48,10 +48,10 @@ Written 2026-10-08 when work moved from the user's Windows machine to a cloud se
 ## Status
 
 - **State:** implemented; open items are user-side only (step 22 interactive sign-in check, step 25 tutorial screenshots)
-- **Current step:** 30 - CI workflow
+- **Current step:** none (all steps done except the step 22 interactive check)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** b27b58e (parent of HEAD)
+- **Last synced commit:** 2f4e05a (parent of HEAD)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -336,12 +336,12 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Progress:** build clean, 84 passed, 2 skipped (DPAPI Windows-only, reflink needs btrfs/xfs/ReFS). All UiSnap scenarios re-run; force strategy persists from the new Advanced picker.
 - **Commit:** `harden error paths and add tests`
 
-### 30. CI workflow `[~]`
+### 30. CI workflow `[x]`
 
 - **Files:** `.github/workflows/ci.yml`, `tools/DepotVault.UiSnap/*`, `tests/DepotVault.Tests/Linking/LinkingTests.cs`
 - **Do:** GitHub Actions on push to main, PRs and manual dispatch. Matrix: Linux ext4, Linux btrfs and xfs loop volumes (reflink via `FICLONE`), Windows NTFS, Windows ReFS VHD (block cloning). Reflink jobs point the temp dir at the volume and set `DV_EXPECT_REFLINK=1` so the reflink test fails instead of skipping. UiSnap scenarios get pass/fail checks (`Scenarios.Check`, exit code 1) and run as headless smoke tests (Steam-free ones on Linux and Windows, fake-Steam `switch-dialogs`/`mutable` on Linux); renders uploaded as artifacts. No macOS (not a target platform; postponed by the user).
 - **Verify:** all matrix jobs green on GitHub.
-- **Progress:** workflow written; locally all UiSnap checks pass and `DV_EXPECT_REFLINK=1` fails the reflink test on ext4 as intended. Waiting for the first CI run.
+- **Progress:** first run (2f4e05a) green on all 5 jobs: 86 tests, 81 passed / 5 skipped per job; on btrfs, xfs and ReFS the reflink test ran (hard-asserted via `DV_EXPECT_REFLINK`) while the hardlink-only tests skipped; UiSnap scenarios passed on Linux and Windows. Actions bumped to v5 (Node 20 deprecation).
 - **Commit:** `add ci workflow`
 
 ## Risks
@@ -380,6 +380,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 28: candidates come from all saved manifests of the app (`MutableFileScanner.ScanApp`) plus a stat-only integrity scan for "changed since linked". The review opens (and is awaited) before the first switch and before the first download that could dedupe against an existing version; app detail shows a banner while self-heal candidates are pending and refreshes on `Vault.HealCompleted`. Per-file choices are stored as exact rules, pattern rules (globs) are edited in the dialog; per-file rules that equal what a pattern gives are not stored. Explicit "Not decided" cannot override a pattern. Import, review and switch-report events on `AppDetailViewModel` were replaced by direct `AppDialogs` calls. Also fixed: read-only protection now clears the flag on files marked Share; the download queue sets `Error`/`FinishedUtc` before publishing `Failed`/`Done` (a reader saw `Failed` with no error; flaky `FailureIsRecordedAndRetryable`). UiSnap `Seed` marks the sample app reviewed; UiSnap scenario `mutable` added.
 - 2026-10-08 - Step 29: jobs carry `JobErrorKind` (`JobErrors.Classify`: purged manifest, depot access denied, disk full via ENOSPC/ERROR_DISK_FULL, network, Steam timeout, other) with a user-facing message; a purged manifest marks the matching history entry unavailable (`AppRecord.MarkUnavailable`); network/timeout failures resume automatically on the next sign-in. Token expiry was already covered (session lost re-opens sign-in). File logger survives `UnauthorizedAccessException`; unhandled AppDomain/task/UI exceptions are logged. Force strategy picker under Advanced in app detail (copy there is an explicit opt-in). Steam verify/update behavior documented in app detail and Help (Help also shows the log folder). New tests: error classification, queue error kind, history marking, file logger, forced copy/hardlink strategies, missing-file switch report. Parser, linking, heal, ACF patch and switcher revert were already covered.
 - 2026-10-08 - Step 30 added at the user's request: CI workflow (see step). UiSnap `Save` now checks that each render was written; `Program` returns 1 when any check failed.
+- 2026-10-08 - Step 30: first CI run executed the Linux `FICLONE` path (btrfs, xfs) and Windows block cloning on ReFS for the first time; all passed without code changes.
 
 ## Open questions
 
