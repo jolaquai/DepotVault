@@ -1,0 +1,29 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DepotVault.App.ViewModels"
+        x:Class="DepotVault.App.Views.ShellWindow"
+        x:DataType="vm:ShellViewModel"
+        x:CompileBindings="True"
+        Title="DepotVault" Width="1200" Height="780" MinWidth="900" MinHeight="560">
+  <Grid ColumnDefinitions="200,*">
+    <Border Grid.Column="0" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+      <DockPanel Margin="8">
+        <TextBlock DockPanel.Dock="Top" Classes="h1" Text="DepotVault" Margin="8,8,8,16" />
+        <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="8">
+          <TextBlock Classes="muted" Text="Steam account" FontSize="11" />
+          <TextBlock Text="{Binding AccountText}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+          <Button Content="Sign in" Command="{Binding SignInCommand}" IsVisible="{Binding !IsSignedIn}" HorizontalAlignment="Stretch" />
+          <Button Content="Sign out" Command="{Binding SignOutCommand}" IsVisible="{Binding IsSignedIn}" HorizontalAlignment="Stretch" />
+        </StackPanel>
+        <ListBox ItemsSource="{Binding Pages}" SelectedItem="{Binding CurrentPage}" Background="Transparent">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:PageViewModel">
+              <TextBlock Text="{Binding Title}" Margin="4,6" FontSize="15" />
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </Border>
+    <ContentControl Grid.Column="1" Content="{Binding CurrentPage}" Margin="20" />
+  </Grid>
+</Window>

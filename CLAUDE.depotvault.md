@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 21 - App shell + DI + navigation
+- **Current step:** 22 - Login dialog
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 18b27f7 (parent of the step commit)
+- **Last synced commit:** a6107d0 (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -233,7 +233,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet test --solution DepotVault.slnx`
 - **Commit:** `add steamdb paste parser`
 
-### 21. App shell + DI + navigation `[ ]`
+### 21. App shell + DI + navigation `[x]`
 
 - **Files:** `src/DepotVault.App/App.axaml(.cs)`, `Program.cs`, `ViewModels/ShellViewModel.cs`, `Views/ShellView.axaml`
 - **Do:** Microsoft DI wiring for Core services; left nav (Library, Downloads, Settings, Help) + account indicator; theme from settings; compiled bindings. File logging via `ILogger` file sink.
@@ -322,6 +322,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 17: protection applies to the inode, so clearing it on version delete also unprotects siblings until the next `Apply`. `FileUtil.ForceDelete` used wherever DepotVault replaces files.
 - 2026-10-08 - Step 18: ACF patching uses an own span-preserving `VdfDocument` (edits value spans in place, inserts missing keys with sibling indentation) since SteamKit2 `KeyValue` re-serializes the whole file; `libraryfolders.vdf` still uses `KeyValue`. Verified read-only against the real install: 16 ACFs round-trip byte-exact.
 - 2026-10-08 - Step 19: adoption loads the installed manifests (ACF `InstalledDepots`) to tell manifest-owned from foreign files; no foreign files on the same volume = one directory rename, otherwise owned files move individually and foreign files stay. Cross-volume adoption counts as a copy and goes through the copy rule. Per-app install state (`InstallState`: mode, version, placed files with size/mtime/link kind) lives in `apps/<appid>.json`; leaving per-file mode deletes unchanged placed files and stages changed independent copies. Foreign files written into a junctioned version dir are moved into a real install dir (per-file mode) on the next switch. ACF `buildid` is written from `SwitchRequest.AcfBuildId` (caller passes the app's current public build so Steam sees no pending update); `InstalledDepots` gets the target manifests. `AppRecord.ForceStrategy` (junction/hardlink/symlink/copy) is honored here already (UI in step 29).
+- 2026-10-08 - Step 21: added `Core/Vault.cs` composition root (all services + queue/runner/resolver wiring) and `Core/Logging/FileLoggerProvider.cs`; DI registers `Vault` and page VMs. Shell is `Views/ShellWindow.axaml`. GUI verification uses `tools/DepotVault.UiSnap` (Avalonia headless + Skia, seeds a temp data dir, renders pages/scenarios to PNG) because the desktop must not be driven while the user is using it; `dotnet run --project tools/DepotVault.UiSnap -- <outDir> [dataDir] [scenario]`.
 
 ## Open questions
 

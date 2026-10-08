@@ -1,0 +1,7 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DepotVault.App.ViewModels"
+             x:Class="DepotVault.App.Views.HelpView"
+             x:DataType="vm:HelpViewModel">
+  <TextBlock Classes="h1" Text="{Binding Title}" />
+</UserControl>
