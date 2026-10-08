@@ -178,6 +178,7 @@ public sealed class DownloadQueue : IDisposable
                     continue;
                 j.State = JobState.Running;
                 j.Cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+                j.Dirty = Persist;
                 (toStart ??= []).Add(j);
                 running++;
             }

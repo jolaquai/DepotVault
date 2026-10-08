@@ -30,10 +30,10 @@ internal sealed class ManifestServiceProvider(ManifestService service) : IManife
     public Task<DepotManifest> GetAsync(uint appId, uint depotId, ulong manifestId, string savePath, CancellationToken ct) => service.GetAsync(appId, depotId, manifestId, savePath, ct);
 }
 
-public sealed class DepotJobRunner(IManifestProvider manifests, Func<uint, IChunkSource> sourceFactory, IDownloadTargetResolver resolver, Func<int> maxConcurrentChunks, BandwidthLimiter limiter = null, Func<DownloadJob, IChunkTracker> trackerFactory = null) : IJobRunner
+public sealed class DepotJobRunner(IManifestProvider manifests, Func<uint, IChunkSource> sourceFactory, IDownloadTargetResolver resolver, Func<int> maxConcurrentChunks, BandwidthLimiter limiter = null) : IJobRunner
 {
-    public DepotJobRunner(ManifestService manifests, Func<uint, IChunkSource> sourceFactory, IDownloadTargetResolver resolver, Func<int> maxConcurrentChunks, BandwidthLimiter limiter = null, Func<DownloadJob, IChunkTracker> trackerFactory = null)
-        : this(new ManifestServiceProvider(manifests), sourceFactory, resolver, maxConcurrentChunks, limiter, trackerFactory) { }
+    public DepotJobRunner(ManifestService manifests, Func<uint, IChunkSource> sourceFactory, IDownloadTargetResolver resolver, Func<int> maxConcurrentChunks, BandwidthLimiter limiter = null)
+        : this(new ManifestServiceProvider(manifests), sourceFactory, resolver, maxConcurrentChunks, limiter) { }
 
     public async Task RunAsync(DownloadJob job, CancellationToken ct)
     {
@@ -46,14 +46,30 @@ public sealed class DepotJobRunner(IManifestProvider manifests, Func<uint, IChun
             TargetVersionId = job.TargetVersionId,
             NeverShare = target.NeverShare,
         });
-        var files = await new ChunkPipeline().RunAsync(job.DepotId, plans, target.VersionDir, job.Counters, new PipelineOptions
+        var tracker = new ResumeTracker(job.Resume, target.VersionDir, job.Dirty);
+        job.Tracker = tracker;
+        List<FileSnapshot> files;
+        try
         {
-            Source = sourceFactory(job.AppId),
-            MaxConcurrentChunks = maxConcurrentChunks(),
-            Sharer = target.Sharer,
-            Limiter = limiter,
-            Tracker = trackerFactory?.Invoke(job),
-        }, ct).ConfigureAwait(false);
+            files = await new ChunkPipeline().RunAsync(job.DepotId, plans, target.VersionDir, job.Counters, new PipelineOptions
+            {
+                Source = sourceFactory(job.AppId),
+                MaxConcurrentChunks = maxConcurrentChunks(),
+                Sharer = target.Sharer,
+                Limiter = limiter,
+                Tracker = tracker,
+            }, ct).ConfigureAwait(false);
+        }
+        catch
+        {
+            job.Resume = tracker.Export();
+            job.Tracker = null;
+            tracker.Dispose();
+            throw;
+        }
+        job.Tracker = null;
+        job.Resume = null;
+        tracker.Dispose();
         resolver.OnCompleted(job, target, manifest, files);
     }
 }

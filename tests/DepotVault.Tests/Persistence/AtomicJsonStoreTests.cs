@@ -77,6 +77,19 @@ public class AtomicJsonStoreTests
     }
 
     [Fact]
+    public async Task ContinuousSchedulingStillWrites()
+    {
+        using var dir = new TempDir();
+        await using var store = new AtomicJsonStore<TestDoc>(dir.Combine("a.json"), TestJsonContext.Default.TestDoc, debounce: TimeSpan.FromMilliseconds(40));
+        for (var i = 0; i < 30; i++)
+        {
+            store.ScheduleSave(new TestDoc { Count = i });
+            await Task.Delay(15, TestContext.Current.CancellationToken);
+        }
+        Assert.True(store.WriteCount >= 1);
+    }
+
+    [Fact]
     public void DisposeFlushesPending()
     {
         using var dir = new TempDir();

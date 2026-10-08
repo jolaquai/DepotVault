@@ -26,9 +26,24 @@ public sealed class DownloadJob
     public DateTime FinishedUtc { get; set; }
     public JobCounters Counters { get; set; } = new();
 
+    private Dictionary<string, byte[]> _resume;
+
+    public Dictionary<string, byte[]> Resume
+    {
+        get => Tracker?.Export() ?? _resume;
+        set => _resume = value;
+    }
+
     [JsonIgnore]
     internal CancellationTokenSource Cts { get; set; }
 
+    [JsonIgnore]
+    internal ResumeTracker Tracker { get; set; }
+
+    [JsonIgnore]
+    internal Action Dirty { get; set; }
+
+    [JsonIgnore]
     public bool IsFinished => State is JobState.Done or JobState.Failed or JobState.Canceled;
 }
 

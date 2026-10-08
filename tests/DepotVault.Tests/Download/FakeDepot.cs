@@ -16,6 +16,7 @@ public sealed class FakeDepot : IChunkSource
     public int Fetches => Volatile.Read(ref _fetches);
     public Func<DepotManifest.ChunkData, bool> Corrupt { get; set; }
     public Func<int, bool> FailAt { get; set; }
+    public Action<int> OnFetch { get; set; }
 
     public static byte[] Bytes(string s, int repeat = 1) => Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat(s, repeat)));
 
@@ -47,6 +48,8 @@ public sealed class FakeDepot : IChunkSource
         var n = Interlocked.Increment(ref _fetches);
         if (FailAt?.Invoke(n) == true)
             throw new IOException("simulated CDN failure");
+        OnFetch?.Invoke(n);
+        ct.ThrowIfCancellationRequested();
         var data = _chunks[new Sha1Hash(chunk.ChunkID)];
         data.CopyTo(destination, 0);
         if (Corrupt?.Invoke(chunk) == true)

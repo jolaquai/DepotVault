@@ -13,6 +13,7 @@ public sealed class AtomicJsonStore<T> : IAsyncDisposable, IDisposable where T :
     private readonly Lock _pendingLock = new();
     private readonly Timer _timer;
     private Func<T> _pending;
+    private long _pendingSince;
     private int _writeCount;
 
     public AtomicJsonStore(string path, JsonTypeInfo<T> typeInfo, IJsonMigrator migrator = null, TimeSpan? debounce = null)
@@ -74,8 +75,12 @@ public sealed class AtomicJsonStore<T> : IAsyncDisposable, IDisposable where T :
     {
         lock (_pendingLock)
         {
+            var starving = _pending is not null && System.Diagnostics.Stopwatch.GetElapsedTime(_pendingSince) > _debounce * 4;
+            if (_pending is null)
+                _pendingSince = System.Diagnostics.Stopwatch.GetTimestamp();
             _pending = snapshot;
-            _timer.Change(_debounce, Timeout.InfiniteTimeSpan);
+            if (!starving)
+                _timer.Change(_debounce, Timeout.InfiniteTimeSpan);
         }
     }
 
