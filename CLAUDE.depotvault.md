@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 11 - Linking primitives (manual verify pending for 5, 7, 9)
+- **Current step:** 12 - Library model (manual verify pending for 5, 7, 9)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** e44a30c (parent of the step commit)
+- **Last synced commit:** f832ee6 (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -163,7 +163,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet test --solution DepotVault.slnx` (test: kill mid-job simulated by cancel, resume completes with correct hashes)
 - **Commit:** `add pause and resume`
 
-### 11. Linking primitives `[ ]`
+### 11. Linking primitives `[x]`
 
 - **Files:** `src/DepotVault.Core/Linking/ILinkStrategy.cs`, `Win/*.cs`, `Linux/*.cs`, `VolumeCapabilities.cs`, tests
 - **Do:** `LibraryImport` P/Invoke. Windows: junction (`DeviceIoControl` `FSCTL_SET_REPARSE_POINT`, `IO_REPARSE_TAG_MOUNT_POINT`), `CreateHardLinkW`, `File.CreateSymbolicLink`, reflink (`FSCTL_DUPLICATE_EXTENTS_TO_FILE`, cluster-aligned), volume/file id via `GetVolumeInformationByHandleW`. Linux: dir symlink as junction, `link()`, symlink, `ioctl(FICLONE)`, `stat().st_dev`. Probe capability once per volume (reflink/hardlink/symlink support, hardlink count limit) and cache. Tests gated by platform + capability skip.
@@ -314,6 +314,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 7: `CdnPool` ranks `CdnServer` descriptors wrapping SteamKit2 `Server` (its setters are internal, so tests cannot construct it).
 - 2026-10-08 - Step 9: `state.json` model (`VersionState`, `FileSnapshot`, `LinkKind`) created here instead of step 16 since the pipeline writes it. `Sha1Hash` 20-byte struct created here (shared with step 13). `AtomicJsonStore.ScheduleSave(Func<T>)` added so debounced saves serialize a snapshot.
 - 2026-10-08 - Step 10: resume bitmaps live on `DownloadJob.Resume` (persisted via queue.json); `ResumeTracker` lives in `Download/ResumeState.cs`. Debounced saves got a max-wait (4x debounce) so continuous chunk progress cannot starve persistence.
+- 2026-10-08 - Step 11: reflink support on Windows detected via `FSCTL_GET_INTEGRITY_INFORMATION` (fails on non-ReFS) and integrity settings are mirrored onto the clone target. Linux file identity uses `statx` (arch-independent layout). Fallback logic lives in `Linker` + `LinkRules` in `VolumeCapabilities.cs`. Dev box has no ReFS/Dev Drive, so the reflink test is skipped here.
 
 ## Open questions
 
