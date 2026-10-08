@@ -106,6 +106,7 @@ public sealed class ChunkPipeline
                             continue;
                         case FileAction.Empty:
                             Directory.CreateDirectory(Path.GetDirectoryName(full));
+                            FileUtil.ForceDelete(full);
                             using (File.Create(full)) { }
                             continue;
                         case FileAction.Share:
@@ -140,8 +141,7 @@ public sealed class ChunkPipeline
                             for (var i = 0; i < chunks.Count; i++)
                                 pending.Add(i);
                         }
-                        if (File.Exists(full))
-                            File.Delete(full);
+                        FileUtil.ForceDelete(full);
                     }
                     else
                     {
@@ -263,7 +263,7 @@ public sealed class ChunkPipeline
             {
                 bad.Add(fw.Plan.RelPath);
                 tracker?.ResetFile(fw.Plan);
-                try { File.Delete(fw.FullPath); }
+                try { FileUtil.ForceDelete(fw.FullPath); }
                 catch (IOException) { }
             }
         }).ConfigureAwait(false);
@@ -282,7 +282,7 @@ public sealed class ChunkPipeline
     {
         Directory.CreateDirectory(Path.GetDirectoryName(full));
         if (File.Exists(full) || Directory.Exists(full))
-            File.Delete(full);
+            FileUtil.ForceDelete(full);
         try
         {
             File.CreateSymbolicLink(full, target.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar));

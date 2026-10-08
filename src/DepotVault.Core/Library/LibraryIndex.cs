@@ -224,12 +224,8 @@ public sealed class LibraryIndex : IDisposable
             LinkStrategy.RemoveDirectoryLink(dir);
             return;
         }
-        foreach (var f in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
-        {
-            var attrs = File.GetAttributes(f);
-            if ((attrs & FileAttributes.ReadOnly) != 0)
-                File.SetAttributes(f, attrs & ~FileAttributes.ReadOnly);
-        }
+        if (OperatingSystem.IsWindows())
+            ReadOnlyProtection.Remove(dir);
         Directory.Delete(dir, true);
     }
 

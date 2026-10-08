@@ -51,8 +51,7 @@ public sealed class Deduper(LibraryIndex library, Linker linker)
             kind = LinkKind.None;
             if (!owner.IsIntact(plan.ShareSource, plan))
                 return false;
-            if (File.Exists(targetPath))
-                File.Delete(targetPath);
+            FileUtil.ForceDelete(targetPath);
             var rules = isolate?.Invoke(plan.RelPath) == true ? new LinkRules(AllowHardlink: false) : new LinkRules();
             try
             {

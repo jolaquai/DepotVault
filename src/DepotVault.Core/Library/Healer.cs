@@ -70,11 +70,7 @@ public sealed class Healer(LibraryIndex library, AppRepository apps, ContentInde
                     continue;
                 }
 
-                if (File.Exists(full))
-                {
-                    File.SetAttributes(full, FileAttributes.Normal);
-                    File.Delete(full);
-                }
+                FileUtil.ForceDelete(full);
                 Directory.CreateDirectory(Path.GetDirectoryName(full));
                 if (issue.Kind == IssueKind.Changed)
                     MarkDiverged(app, issue.RelPath);

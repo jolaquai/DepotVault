@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 17 - Optional read-only protection
+- **Current step:** 18 - Steam install discovery + ACF/VDF
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** d8c741e (parent of the step commit)
+- **Last synced commit:** 1f5581c (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -205,7 +205,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet test --solution DepotVault.slnx` (test: modify a hardlinked file in place, heal restores siblings)
 - **Commit:** `add integrity check and self-heal`
 
-### 17. Optional read-only protection `[ ]`
+### 17. Optional read-only protection `[x]`
 
 - **Files:** `src/DepotVault.Core/Library/ReadOnlyProtection.cs`
 - **Do:** setting-gated (default off): set read-only attribute on shared files; never on files marked Share. Reversible on version delete.
@@ -319,6 +319,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 14: manual check used the same manifest (228988/6645201662696499616) for two library versions via `dvcli lib-download`; second version deduped 29,212,173 bytes with 0 downloaded. Share policy is injected into `LibraryTargetResolver` via `SharePolicy` (enabled flag, never-share predicate, isolate predicate); step 15 provides the per-app predicates. `PathGlob` (simple `*`/`?` matcher) added for exclusion globs.
 - 2026-10-08 - Step 15: decisions are `MutableRule { Pattern, Decision }` on `AppRecord` (`Unreviewed` = enum default); explicit Share overrides per-app exclusions and global globs. `MutableFileScanner.BuildPolicy` produces the `SharePolicy` for the download resolver.
 - 2026-10-08 - Step 16: the stat scan re-stats each file via `FileInfo` on Windows because NTFS directory entries of sibling hardlink names keep stale size/mtime. Diverged files in non-active versions are restored with reflink-or-copy (never hardlink) since they become excluded. `AtomicJsonStore` debounce param is now a plain `TimeSpan` (no nullable).
+- 2026-10-08 - Step 17: protection applies to the inode, so clearing it on version delete also unprotects siblings until the next `Apply`. `FileUtil.ForceDelete` used wherever DepotVault replaces files.
 
 ## Open questions
 
