@@ -81,21 +81,26 @@ internal static class Scenarios
                 d.DownloadCurrentCommand.Execute(null);
                 pump();
                 Console.WriteLine($"After download current: {d.StatusText}; queued jobs {vault.Queue.Jobs.Count}: {string.Join(", ", vault.Queue.Jobs.Select(j => $"{j.DepotId}:{j.ManifestId}->{j.TargetVersionId} {j.State}"))}");
+                Check(vault.Queue.Jobs.Count == 2, "download current queues one job per selected depot");
                 d.SelectedHistory = d.History.First(h => h.ManifestId == 999999999999999999);
                 d.DownloadHistoryCommand.Execute(null);
                 pump();
                 Console.WriteLine($"After download history: {d.StatusText}; versions {d.Versions.Count}");
+                Check(d.Versions.Count == 4, "history download creates a version");
                 d.SelectedVersion = d.Versions.First(v => !v.IsActive && v.IsComplete);
                 var deleting = d.SelectedVersion.Id;
                 d.DeleteCommand.Execute(null);
                 pump();
                 Console.WriteLine($"After delete {deleting}: {d.StatusText}; exists={vault.Library.Find(deleting) is not null}");
+                Check(vault.Library.Find(deleting) is null, "delete removes the version");
                 d.SelectedVersion = d.Versions.First(v => v.IsActive);
                 d.SelectedVersion.Label = "Renamed";
                 pump();
                 Console.WriteLine($"Label persisted: {vault.Library.Find(d.SelectedVersion.Id).Label}");
+                Check(vault.Library.Find(d.SelectedVersion.Id).Label == "Renamed", "label edit persists");
                 d.StrategyIndex = 3;
                 Console.WriteLine($"Force strategy persisted: {vault.Apps.Get(480000).ForceStrategy}");
+                Check(vault.Apps.Get(480000).ForceStrategy == "symlink", "force strategy persists");
                 window.Height = 1700;
                 save(window, "library-actions");
                 break;
@@ -148,6 +153,7 @@ internal static class Scenarios
                 }
                 pump();
                 Console.WriteLine($"Tutorial closed={!tut.IsVisible}, seen={vault.Settings.Current.TutorialSeen}, dontShowAgain={vault.Settings.Current.TutorialDontShowAgain}");
+                Check(!tut.IsVisible && vault.Settings.Current.TutorialSeen && vault.Settings.Current.TutorialDontShowAgain, "tutorial closes and persists don't-show-again");
 
                 var lib = services.GetRequiredService<LibraryViewModel>();
                 shell.CurrentPage = lib;
@@ -171,11 +177,13 @@ internal static class Scenarios
                     """;
                 pump();
                 Console.WriteLine($"Depot {vm.DepotIdText} ({vm.SelectedDepot}); {vm.Summary} {vm.WarningText}");
+                Check(vm.DepotIdText == "480001" && vm.Rows.Count == 5 && vm.WarningText is null, "paste detects depot and previews 5 rows");
                 vm.Rows.First(r => r.ManifestId == "6666666666666666666").Include = false;
                 save(dlg, "import-preview");
                 vm.ImportCommand.Execute(null);
                 Wait(() => dialogs.ActiveImport is null, pump, 5);
                 Console.WriteLine($"Imported {vm.Added}; history {before} -> {d.History.Count}; status: {d.StatusText}; persisted {string.Join(", ", vault.Apps.Get(480000).History.Select(h => h.ManifestId))}");
+                Check(vm.Added == 2 && d.History.Count == before + 2 && vault.Apps.Get(480000).History.All(h => h.ManifestId != 6666666666666666666), "import adds only ticked new rows");
                 save(window, "import-history");
                 break;
             }
@@ -202,18 +210,22 @@ internal static class Scenarios
                 var root = s.Roots[0];
                 s.RemoveRootCommand.Execute(root);
                 Console.WriteLine($"Remove in-use root: {s.StatusText}; roots {s.Roots.Count}");
+                Check(s.Roots.Count == 1 && s.StatusText?.Contains("still holds") == true, "in-use root cannot be removed");
                 var extra = Path.Combine(vault.Paths.Root, "extra-root");
                 s.AddSuggestedCommand.Execute(new RootItem(extra, "", 0));
                 Console.WriteLine($"Added root, roots {s.Roots.Count}");
+                Check(s.Roots.Count == 2, "suggested root can be added");
                 save(window, "settings-changed");
                 s.RemoveRootCommand.Execute(s.Roots.First(r => r.Path.EndsWith("extra-root")));
                 s.ReadOnlyProtection = false;
                 Wait(() => s.StatusText?.StartsWith("Unprotected") == true, pump, 10);
                 Console.WriteLine($"Read-only off: {s.StatusText}; roots {s.Roots.Count}");
+                Check(s.Roots.Count == 1, "empty root can be removed");
                 vault.Settings.Flush();
                 using var reloaded = new DepotVault.Core.Persistence.SettingsStore(vault.Paths);
                 var c = reloaded.Current;
                 Console.WriteLine($"Persisted: jobs={c.MaxConcurrentJobs} chunks={c.MaxConcurrentChunks} bw={c.BandwidthLimitBytesPerSecond} dedupe={c.DedupeEnabled} globs=[{string.Join("|", c.GlobalExclusionGlobs)}] copy={c.CopyFallback} acf={c.AcfLock} integrity={c.IntegrityCheckOnStartup} dontShow={c.TutorialDontShowAgain} theme={c.Theme} ro={c.ReadOnlyProtection} roots=[{string.Join("|", c.LibraryRoots)}]");
+                Check(c.MaxConcurrentJobs == 3 && c.MaxConcurrentChunks == 24 && c.BandwidthLimitBytesPerSecond == 5767168 && !c.DedupeEnabled && c.GlobalExclusionGlobs.SequenceEqual(["*.log", "saves/*"]) && c.CopyFallback == DepotVault.Core.Persistence.CopyFallback.Always && !c.AcfLock && !c.IntegrityCheckOnStartup && c.TutorialDontShowAgain && c.Theme == DepotVault.Core.Persistence.AppTheme.Dark && !c.ReadOnlyProtection && c.LibraryRoots.Count == 1, "settings persist across reload");
                 break;
             }
             case "switch-dialogs":
@@ -233,9 +245,11 @@ internal static class Scenarios
                 d.SwitchCommand.Execute(null);
                 Wait(() => shown is SteamRunningDialog, pump, 10);
                 save(shown, "steam-running");
+                Check(shown is SteamRunningDialog, "switch waits for Steam to exit");
                 running = false;
                 Wait(() => shown is SwitchReportDialog || !d.IsBusy, pump, 60);
                 Console.WriteLine($"Switch: {d.StatusText} (steam dialog visible={shown.IsVisible}, {shown.GetType().Name}, busy={d.IsBusy})");
+                Check(shown is SwitchReportDialog r0 && ((SwitchReportViewModel)r0.DataContext).Failures.Count == 1, "offline adoption failure opens the report");
                 if (shown is SwitchReportDialog report)
                 {
                     save(report, "switch-report");
@@ -252,10 +266,12 @@ internal static class Scenarios
                 Wait(() => !d.IsBusy, pump, 30);
                 var link = new DirectoryInfo(installDir).LinkTarget;
                 Console.WriteLine($"Switch with cached manifest: {d.StatusText}; install link -> {link}; active={vault.Library.GetApp(480000).ActiveVersionId}, versions={d.Versions.Count}");
+                Check(d.StatusText.StartsWith("Switched") && link is not null && vault.Library.GetApp(480000).ActiveVersionId is { } active && Path.GetFileName(link) == active, "switch links the install to the version");
                 save(window, "switched");
                 d.RevertCommand.Execute(null);
                 Wait(() => !d.IsBusy, pump, 30);
                 Console.WriteLine($"Revert: {d.StatusText}; link={new DirectoryInfo(installDir).LinkTarget ?? "none"}; game.bin={File.Exists(Path.Combine(installDir, "game.bin"))}");
+                Check(new DirectoryInfo(installDir).LinkTarget is null && File.ReadAllText(Path.Combine(installDir, "game.bin")) == "installed", "revert restores the original install");
 
                 var prompts = services.GetRequiredService<ISwitchPromptsFactory>().Create();
                 var ask = prompts.AskCopyAsync(42, 3L << 30, default);
@@ -266,6 +282,7 @@ internal static class Scenarios
                 cvm.CopyCommand.Execute(null);
                 Wait(() => ask.IsCompleted, pump, 5);
                 Console.WriteLine($"Copy consent: {ask.Result}");
+                Check(ask.Result is { Allow: true, Remember: true }, "copy consent returns allow + remember");
 
                 running = true;
                 var waitExit = prompts.WaitForSteamExitAsync(default);
@@ -273,6 +290,7 @@ internal static class Scenarios
                 ((SteamRunningViewModel)shown.DataContext).CancelCommand.Execute(null);
                 Wait(() => waitExit.IsCompleted, pump, 5);
                 Console.WriteLine($"Steam wait after cancel: {waitExit.Result}");
+                Check(!waitExit.Result, "cancelling the Steam wait returns false");
                 break;
             }
             case "mutable":
@@ -321,6 +339,7 @@ internal static class Scenarios
                 pump();
                 var d = lib.Detail;
                 Console.WriteLine($"Pending review: {d.PendingReviewCount}");
+                Check(d.PendingReviewCount == 1 && d.HasPendingReview, "pending review banner");
                 save(window, "mutable-pending");
                 d.SelectedVersion = d.Versions.First(v => v.Id == older.Id);
                 d.SwitchCommand.Execute(null);
@@ -329,6 +348,7 @@ internal static class Scenarios
                 Wait(() => !mvm.IsLoading, pump, 10);
                 foreach (var i in mvm.Items)
                     Console.WriteLine($"  {i.RelPath}: {i.Reasons} [{i.Decision}]");
+                Check(mvm.Items.Count == 3, "review lists 3 candidates");
                 mvm.Items.First(i => i.RelPath.StartsWith("saves")).IsSelected = true;
                 mvm.IsolateSelectedCommand.Execute(null);
                 mvm.Items.First(i => i.RelPath.EndsWith("settings.ini")).Decision = DepotVault.Core.Library.MutableDecision.Share;
@@ -341,11 +361,23 @@ internal static class Scenarios
                 Console.WriteLine($"Switch: {d.StatusText}; rules: {string.Join(", ", app.MutableRules.Select(r => $"{r.Pattern}={r.Decision}"))}; reviewed={app.MutableReviewed}; pending={d.PendingReviewCount}");
                 foreach (var (rel, _) in files)
                     Console.WriteLine($"  {rel}: link count {vault.Strategy.GetFileIdentity(Path.Combine(vault.Library.GetVersionDir(older), rel)).LinkCount}");
+                uint Links(string rel) => vault.Strategy.GetFileIdentity(Path.Combine(vault.Library.GetVersionDir(older), rel)).LinkCount;
+                Check(d.StatusText.StartsWith("Switched") && app.MutableReviewed && d.PendingReviewCount == 0, "review saved and switch ran");
+                Check(Links(files[2].Rel) == 1 && Links(files[1].Rel) == 2 && Links(files[0].Rel) == 2, "Isolate detached, Share and undecided stay linked");
                 break;
             }
             default:
                 throw new ArgumentException($"Unknown scenario {name}");
         }
+    }
+
+    public static bool Failed { get; private set; }
+
+    public static void Check(bool ok, string what)
+    {
+        Console.WriteLine($"CHECK {(ok ? "ok  " : "FAIL")} {what}");
+        if (!ok)
+            Failed = true;
     }
 
     private static void CacheInstalledManifest(Vault vault)

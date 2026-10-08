@@ -42,7 +42,7 @@ switch (scenario)
         break;
 }
 window.Close();
-return;
+return Scenarios.Failed ? 1 : 0;
 
 void Pump()
 {
@@ -61,5 +61,5 @@ void Save(TopLevel top, string name)
     var frame = top.CaptureRenderedFrame();
     var file = Path.Combine(outDir, name + ".png");
     frame?.Save(file, new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
-    Console.WriteLine(file);
+    Scenarios.Check(File.Exists(file), $"rendered {name}");
 }

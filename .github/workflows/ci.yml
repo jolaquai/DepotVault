@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: 1
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+
+jobs:
+  test:
+    name: test (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-ext4, os: ubuntu-latest, fs: native, uisnap: true }
+          - { name: linux-btrfs, os: ubuntu-latest, fs: btrfs, uisnap: false }
+          - { name: linux-xfs, os: ubuntu-latest, fs: xfs, uisnap: false }
+          - { name: windows-ntfs, os: windows-latest, fs: native, uisnap: true }
+          - { name: windows-refs, os: windows-2025, fs: refs, uisnap: false }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 11.0.x
+          dotnet-quality: preview
+
+      - name: Mount reflink volume (Linux)
+        if: runner.os == 'Linux' && matrix.fs != 'native'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q btrfs-progs xfsprogs
+          img="$RUNNER_TEMP/fs.img"
+          truncate -s 4G "$img"
+          if [ "${{ matrix.fs }}" = btrfs ]; then sudo mkfs.btrfs -q "$img"; else sudo mkfs.xfs -q -m reflink=1 "$img"; fi
+          sudo mkdir -p /mnt/dv
+          sudo mount -o loop "$img" /mnt/dv
+          sudo chown "$(id -u):$(id -g)" /mnt/dv
+          mkdir /mnt/dv/tmp
+          echo "TMPDIR=/mnt/dv/tmp" >> "$GITHUB_ENV"
+          echo "DV_EXPECT_REFLINK=1" >> "$GITHUB_ENV"
+
+      - name: Mount ReFS volume (Windows)
+        if: runner.os == 'Windows' && matrix.fs == 'refs'
+        shell: pwsh
+        run: |
+          $vhd = Join-Path $env:RUNNER_TEMP 'refs.vhdx'
+          $script = Join-Path $env:RUNNER_TEMP 'diskpart.txt'
+          @"
+          create vdisk file="$vhd" maximum=8192 type=expandable
+          select vdisk file="$vhd"
+          attach vdisk
+          create partition primary
+          format fs=refs quick label=DVREFS
+          assign letter=R
+          "@ | Set-Content -Path $script -Encoding ascii
+          diskpart /s $script
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Path R:\tmp | Out-Null
+          "TEMP=R:\tmp" >> $env:GITHUB_ENV
+          "TMP=R:\tmp" >> $env:GITHUB_ENV
+          "DV_EXPECT_REFLINK=1" >> $env:GITHUB_ENV
+
+      - name: Restore
+        run: dotnet restore DepotVault.slnx
+
+      - name: Build
+        run: dotnet build DepotVault.slnx -c Release --no-restore
+
+      - name: Test
+        run: dotnet test --solution DepotVault.slnx -c Release --no-build
+
+      - name: UI scenarios (headless)
+        if: matrix.uisnap
+        shell: bash
+        run: |
+          scenarios="pages library-actions import settings"
+          if [ "$RUNNER_OS" = Linux ]; then scenarios="$scenarios switch-dialogs mutable"; fi
+          rc=0
+          for s in $scenarios; do
+            echo "::group::$s"
+            timeout 300 dotnet run -c Release --no-build --project tools/DepotVault.UiSnap -- "uisnap/$s" "$RUNNER_TEMP/uisnap-data/$s" "$s" || { rc=1; echo "::error::UiSnap scenario $s failed"; }
+            echo "::endgroup::"
+          done
+          exit $rc
+
+      - name: Upload UI renders
+        if: always() && matrix.uisnap
+        uses: actions/upload-artifact@v4
+        with:
+          name: uisnap-${{ matrix.name }}
+          path: uisnap/**/*.png
+          if-no-files-found: ignore

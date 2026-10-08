@@ -57,6 +57,8 @@ public class LinkingTests
     {
         using var dir = new TempDir();
         var caps = new CapabilityCache(Strategy).Get(dir.Path);
+        if (Environment.GetEnvironmentVariable("DV_EXPECT_REFLINK") == "1")
+            Assert.True(caps.Reflink, $"Expected reflink support at {dir.Path}");
         Assert.SkipUnless(caps.Reflink, "Volume does not support reflinks");
         var src = dir.Combine("a.bin");
         File.WriteAllBytes(src, Enumerable.Range(0, 100000).Select(i => (byte)i).ToArray());
