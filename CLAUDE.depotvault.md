@@ -51,7 +51,7 @@ Written 2026-10-08 when work moved from the user's Windows machine to a cloud se
 - **Current step:** 31 - macOS support
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 2146741 (parent of HEAD)
+- **Last synced commit:** 2fdd0f5 (parent of HEAD)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -350,7 +350,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Files:** `src/DepotVault.Core/Linking/Mac/*`, `Linking/ILinkStrategy.cs`, `Persistence/MacKeychain.cs`, `Persistence/SecretStore.cs`, `SteamInstall/SteamLocator.cs`, `Library/LibraryRoots.cs`, `.github/workflows/ci.yml`, `tools/DepotVault.UiSnap/Scenarios.cs`, tests
 - **Do:** `MacLinkStrategy`: `clonefile` reflink (APFS always clones; the existing reflink -> hardlink -> symlink -> copy order only falls back when cloning really fails, e.g. HFS+), `link()`, symlinks, dir symlink as junction, identity via `stat`/`lstat` (`$INODE64` entry points on x64). Steam at `~/Library/Application Support/Steam`, process `steam_osx`. Paths compare case-insensitively on macOS (APFS default). Token in the Keychain (legacy `SecKeychain*` generic-password API, service `DepotVault`, account = full `auth.bin` path; UI prompts only from the app/CLI, never from tests), falling back to the 0600 file. CI: `macos-apfs` (reflink + Keychain + all UiSnap scenarios) and `macos-hfs` (HFS+ disk image, non-reflink path) with a throwaway unlocked CI keychain and `DV_EXPECT_KEYCHAIN=1`.
 - **Verify:** CI green on both macOS jobs (nothing macOS can run in the cloud session).
-- **Progress:** code + CI written; Linux build/tests green, macOS unverified until the CI run.
+- **Progress:** first CI run (2fdd0f5): APFS tests green (reflink + Keychain), HFS+ had 3 failures from 1-second mtimes, APFS UiSnap `library-actions` failed on an OS-dependent default depot selection. Both fixed in the scenario/tests; waiting for the next run.
 - **Commit:** `add macos support`
 
 ## Risks
@@ -391,6 +391,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 30 added at the user's request: CI workflow (see step). UiSnap `Save` now checks that each render was written; `Program` returns 1 when any check failed.
 - 2026-10-08 - Step 30: first CI run executed the Linux `FICLONE` path (btrfs, xfs) and Windows block cloning on ReFS for the first time; all passed without code changes.
 - 2026-10-08 - Step 31 added at the user's request: macOS support without packaging. Keychain is the default token store with automatic file fallback instead of a settings toggle (user asked for an opinion; a toggle would only offer the weaker option). `SecretStore(path, interactive)`: the app and dvcli allow Keychain UI prompts, tests do not.
+- 2026-10-08 - Step 31 CI fixes: HFS+ stores mtimes with 1-second resolution, so a same-size edit within the same second as linking is invisible to the stat-only integrity scan (accepted limitation of the stat design; real edits happen later). Tests that edit right after linking now wait via `FsTime.WaitUntilNewerAsync` until the volume can tell timestamps apart (instant on APFS/NTFS/ext4/btrfs/xfs/ReFS). UiSnap `library-actions` selects depots explicitly because the default selection depends on the host OS.
 
 ## Open questions
 

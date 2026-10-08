@@ -111,6 +111,7 @@ public class DedupeTests
         var (v1, _) = await env.Download(1);
         var tampered = (byte[])Big.Clone();
         tampered[0] = (byte)'#';
+        await FsTime.WaitUntilNewerAsync(env.FilePath(v1, "asset.pak"), TestContext.Current.CancellationToken);
         File.WriteAllBytes(env.FilePath(v1, "asset.pak"), tampered);
         var (v2, job) = await env.Download(2);
         Assert.Equal(0, job.Counters.DedupedBytes);

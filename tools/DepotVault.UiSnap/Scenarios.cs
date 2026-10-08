@@ -80,6 +80,8 @@ internal static class Scenarios
                 lib.OnActivated();
                 pump();
                 var d = lib.Detail;
+                foreach (var depot in d.Depots)
+                    depot.IsSelected = depot.DepotId is 480001 or 480003;
                 d.DownloadCurrentCommand.Execute(null);
                 pump();
                 Console.WriteLine($"After download current: {d.StatusText}; queued jobs {vault.Queue.Jobs.Count}: {string.Join(", ", vault.Queue.Jobs.Select(j => $"{j.DepotId}:{j.ManifestId}->{j.TargetVersionId} {j.State}"))}");

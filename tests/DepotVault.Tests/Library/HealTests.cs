@@ -79,7 +79,7 @@ public class HealTests
         Assert.Equal(2u, Strategy.GetFileIdentity(env.P(v1)).LinkCount);
         env.Lib.SetActive(10, v2.Id);
 
-        await Task.Delay(20, TestContext.Current.CancellationToken);
+        await FsTime.WaitUntilNewerAsync(env.P(v2), TestContext.Current.CancellationToken);
         ModifyInPlace(env.P(v2));
 
         var issues = new IntegrityChecker(env.Lib).ScanApp(10);
@@ -113,7 +113,7 @@ public class HealTests
         env.Index.Rebuild();
         Assert.Equal(1u, Strategy.GetFileIdentity(env.P(v3)).LinkCount);
 
-        await Task.Delay(20, TestContext.Current.CancellationToken);
+        await FsTime.WaitUntilNewerAsync(env.P(v1), TestContext.Current.CancellationToken);
         ModifyInPlace(env.P(v1));
         var fetches = env.Depot.Fetches;
         var report = await env.Healer().HealAsync(10, new IntegrityChecker(env.Lib).ScanApp(10), TestContext.Current.CancellationToken);
@@ -131,7 +131,7 @@ public class HealTests
         var v1 = await env.Download(1);
         var app = env.Apps.Get(10);
         app.SetDecision("exe.bin", MutableDecision.Share);
-        await Task.Delay(20, TestContext.Current.CancellationToken);
+        await FsTime.WaitUntilNewerAsync(env.P(v1, "exe.bin"), TestContext.Current.CancellationToken);
         File.WriteAllText(env.P(v1, "exe.bin"), "user edit");
         File.SetLastWriteTimeUtc(env.P(v1), DateTime.UtcNow.AddHours(-1));
 
