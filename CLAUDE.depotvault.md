@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 19 - Switcher
+- **Current step:** 20 - SteamDB paste parser
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 901258f (parent of the step commit)
+- **Last synced commit:** 385775c (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -219,7 +219,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet test --solution DepotVault.slnx`
 - **Commit:** `add steam install discovery and acf`
 
-### 19. Switcher `[ ]`
+### 19. Switcher `[x]`
 
 - **Files:** `src/DepotVault.Core/SteamInstall/Switcher.cs`, `SwitchPlan.cs`, tests
 - **Do:** require Steam not running (detect process, prompt; never kill). Adopt current install on first switch (same volume: rename/move; else reflink/hardlink; else ask per copy rule). Strategy: whole-folder junction (Linux dir symlink) if install dir contains only manifest-owned files; else per-file reflink -> hardlink -> symlink -> copy (only if `CopyFallback == Always` or user agrees) -> fail; foreign files untouched; files absent from target removed to a recoverable staging dir. Honor per-file Share/Isolate decisions (Isolate: reflink or copy, never hardlink). Patch ACF: `AutoUpdateBehavior=1`, `InstalledDepots` manifest ids, `buildid`; optional read-only ACF lock (setting, default on, reversible). Record active version per app. Revert = switch to adopted/latest + restore original ACF. Return a structured failure report (paths + reasons).
@@ -321,6 +321,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 16: the stat scan re-stats each file via `FileInfo` on Windows because NTFS directory entries of sibling hardlink names keep stale size/mtime. Diverged files in non-active versions are restored with reflink-or-copy (never hardlink) since they become excluded. `AtomicJsonStore` debounce param is now a plain `TimeSpan` (no nullable).
 - 2026-10-08 - Step 17: protection applies to the inode, so clearing it on version delete also unprotects siblings until the next `Apply`. `FileUtil.ForceDelete` used wherever DepotVault replaces files.
 - 2026-10-08 - Step 18: ACF patching uses an own span-preserving `VdfDocument` (edits value spans in place, inserts missing keys with sibling indentation) since SteamKit2 `KeyValue` re-serializes the whole file; `libraryfolders.vdf` still uses `KeyValue`. Verified read-only against the real install: 16 ACFs round-trip byte-exact.
+- 2026-10-08 - Step 19: adoption loads the installed manifests (ACF `InstalledDepots`) to tell manifest-owned from foreign files; no foreign files on the same volume = one directory rename, otherwise owned files move individually and foreign files stay. Cross-volume adoption counts as a copy and goes through the copy rule. Per-app install state (`InstallState`: mode, version, placed files with size/mtime/link kind) lives in `apps/<appid>.json`; leaving per-file mode deletes unchanged placed files and stages changed independent copies. Foreign files written into a junctioned version dir are moved into a real install dir (per-file mode) on the next switch. ACF `buildid` is written from `SwitchRequest.AcfBuildId` (caller passes the app's current public build so Steam sees no pending update); `InstalledDepots` gets the target manifests. `AppRecord.ForceStrategy` (junction/hardlink/symlink/copy) is honored here already (UI in step 29).
 
 ## Open questions
 

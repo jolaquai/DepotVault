@@ -59,6 +59,7 @@ public sealed class AppRecord : ISchemaVersioned
     public List<string> Exclusions { get; set; } = [];
     public List<string> ReviewCandidates { get; set; } = [];
     public string ForceStrategy { get; set; }
+    public SteamInstall.InstallState Install { get; set; }
 
     public MutableDecision GetDecision(string relPath)
     {
