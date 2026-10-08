@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 7 - Depot keys, manifest codes, CDN pool, manifest fetch (step 5 manual verify pending)
+- **Current step:** 8 - Download job model + queue (manual verify pending for 5, 7)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 5fbc5f1 (parent of the step commit)
+- **Last synced commit:** f09af61 (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -133,11 +133,12 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet test --solution DepotVault.slnx`
 - **Commit:** `add pics depot metadata`
 
-### 7. Depot keys, manifest codes, CDN pool, manifest fetch `[ ]`
+### 7. Depot keys, manifest codes, CDN pool, manifest fetch `[~]`
 
 - **Files:** `src/DepotVault.Core/Steam/DepotKeyCache.cs`, `CdnPool.cs`, `ManifestService.cs`
 - **Do:** `SteamApps.GetDepotDecryptionKey` cached in memory. `SteamContent.GetManifestRequestCode(depot, app, manifestId, "public")`. `SteamContent.GetServersForSteamPipe()` ranked pool (prefer SteamCache/CDN types, penalty + backoff on failing hosts). `CDN.Client.DownloadManifestAsync` -> `DecryptFilenames(key)` -> save `versions/<versionId>/manifest.bin`. Surface "unavailable" state when a historic manifest is purged.
 - **Verify:** `dotnet build DepotVault.slnx`; manual: fetch a known owned manifest, `manifest.bin` loads back with file count > 0.
+- **Progress:** code done, unit tests for `CdnPool` pass; `dvcli app <appid>` and `dvcli manifest <appid> <depotid> [manifestid]` added. Manual check pending (needs saved token): `dvcli manifest` must print file count > 0 after reload.
 - **Commit:** `add manifest fetch and cdn pool`
 
 ### 8. Download job model + queue `[ ]`
@@ -309,6 +310,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Solution is `DepotVault.slnx` (SDK 11 default format), all verify commands updated. SDK 11.0.100-preview.6; Microsoft.Extensions.* and ProtectedData pinned to the matching preview.6 packages. Avalonia 12.1.3, SteamKit2 3.4.0, xunit.v3 4.0.1. Added root `global.json` with MTP test runner.
 - 2026-10-08 - Step 2: `JsonContext` deferred to step 3 (an empty source-gen context does not compile). Per-depot manifests stored as `versions/<versionId>/<depotId>.manifest.bin` since a version can merge several depots.
 - 2026-10-08 - Added `tools/DepotVault.Cli` (`dvcli`) console harness for manual Steam verification (steps 5, 7, 9, 14). User logs in once; later checks reuse the saved token. Steps whose only open item is a Steam-backed manual check stay `[~]` until verified and work continues with the next step.
+- 2026-10-08 - Step 7: `CdnPool` ranks `CdnServer` descriptors wrapping SteamKit2 `Server` (its setters are internal, so tests cannot construct it).
 
 ## Open questions
 
