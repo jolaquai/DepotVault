@@ -47,6 +47,7 @@ public partial class App : Application
         services.AddLogging(b => b.SetMinimumLevel(LogLevel.Information).AddProvider(new FileLoggerProvider(paths.LogsDir)));
         services.AddSingleton(sp => new Vault(paths, sp.GetRequiredService<ILoggerFactory>()));
         services.AddSingleton<DialogService>();
+        services.AddSingleton<AppDialogs>();
         services.AddSingleton<ISwitchPromptsFactory, DeclineSwitchPrompts>();
         services.AddSingleton<ShellViewModel>();
         services.AddSingleton<LibraryViewModel>();

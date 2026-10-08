@@ -33,12 +33,14 @@ public partial class LibraryViewModel : PageViewModel
 {
     private readonly Vault _vault;
     private readonly IServiceProvider _services;
+    private readonly AppDialogs _dialogs;
     private bool _refreshQueued;
 
-    public LibraryViewModel(Vault vault, IServiceProvider services) : base("Library")
+    public LibraryViewModel(Vault vault, IServiceProvider services, AppDialogs dialogs) : base("Library")
     {
         _vault = vault;
         _services = services;
+        _dialogs = dialogs;
         _vault.Library.Changed += () =>
         {
             if (_refreshQueued)
@@ -134,8 +136,23 @@ public partial class LibraryViewModel : PageViewModel
     {
         Detail?.Dispose();
         Detail = value is null ? null : ActivatorUtilities.CreateInstance<AppDetailViewModel>(_services, value.AppId);
-        Detail?.OnActivated();
+        if (Detail is not { } d)
+            return;
+        d.ImportRequested += () => _ = ImportAsync(d);
+        d.OnActivated();
     }
+
+    private async Task ImportAsync(AppDetailViewModel d)
+    {
+        var added = await _dialogs.ShowImportAsync(d.AppId);
+        if (added == 0)
+            return;
+        d.Refresh();
+        d.StatusText = $"Imported {added} manifest(s).";
+    }
+
+    [RelayCommand]
+    private Task ShowTutorialAsync() => _dialogs.ShowTutorialAsync();
 
     [RelayCommand]
     private async Task AddAppAsync()

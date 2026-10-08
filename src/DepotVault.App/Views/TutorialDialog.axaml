@@ -1,0 +1,21 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DepotVault.App.ViewModels"
+        x:Class="DepotVault.App.Views.TutorialDialog"
+        x:DataType="vm:TutorialViewModel"
+        Title="Importing manifests from SteamDB" Width="560" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="20" Spacing="12">
+    <TextBlock Classes="muted" Text="{Binding StepText}" />
+    <TextBlock Classes="h2" Text="{Binding Current.Title}" />
+    <Image Source="{Binding Current.Image}" IsVisible="{Binding Current.HasImage}" MaxHeight="300" Stretch="Uniform" />
+    <TextBlock Text="{Binding Current.Body}" TextWrapping="Wrap" MinHeight="90" />
+    <Grid ColumnDefinitions="*,Auto">
+      <CheckBox Grid.Column="0" Content="Don't show this automatically again" IsChecked="{Binding DontShowAgain}" />
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+        <Button Content="Back" Command="{Binding BackCommand}" />
+        <Button Content="{Binding NextText}" Command="{Binding NextCommand}" Classes="accent" IsDefault="True" />
+      </StackPanel>
+    </Grid>
+  </StackPanel>
+</Window>

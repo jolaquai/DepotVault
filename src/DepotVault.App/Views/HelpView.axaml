@@ -3,5 +3,13 @@
              xmlns:vm="using:DepotVault.App.ViewModels"
              x:Class="DepotVault.App.Views.HelpView"
              x:DataType="vm:HelpViewModel">
-  <TextBlock Classes="h1" Text="{Binding Title}" />
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Spacing="10" MaxWidth="760" HorizontalAlignment="Left">
+      <TextBlock Classes="h1" Text="{Binding Title}" />
+      <TextBlock Classes="h2" Text="Getting old versions" />
+      <TextBlock TextWrapping="Wrap"
+                 Text="Steam only tells DepotVault about the current build of a game. Older builds are found through SteamDB: copy a depot's manifest list there and import it into DepotVault, then download any manifest from the game's history." />
+      <Button Content="Show the SteamDB import walkthrough" Command="{Binding ShowTutorialCommand}" />
+    </StackPanel>
+  </ScrollViewer>
 </UserControl>

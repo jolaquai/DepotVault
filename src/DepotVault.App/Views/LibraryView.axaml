@@ -14,8 +14,11 @@
         </Grid>
         <TextBlock Text="{Binding StatusText}" Classes="muted" TextWrapping="Wrap" IsVisible="{Binding StatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       </StackPanel>
-      <TextBlock DockPanel.Dock="Top" IsVisible="{Binding IsEmpty}" TextWrapping="Wrap" Classes="muted"
-                 Text="No games yet. Add a game above, then import its manifest history from SteamDB (see Help for a walkthrough)." />
+      <StackPanel DockPanel.Dock="Top" IsVisible="{Binding IsEmpty}" Spacing="8">
+        <TextBlock TextWrapping="Wrap" Classes="muted"
+                   Text="No games yet. Add a game above, then import its manifest history from SteamDB." />
+        <Button Content="How to import from SteamDB" Command="{Binding ShowTutorialCommand}" />
+      </StackPanel>
       <ListBox ItemsSource="{Binding Apps}" SelectedItem="{Binding SelectedApp}">
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="vm:AppItemViewModel">

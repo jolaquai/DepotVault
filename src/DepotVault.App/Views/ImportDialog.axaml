@@ -1,0 +1,49 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DepotVault.App.ViewModels"
+        x:Class="DepotVault.App.Views.ImportDialog"
+        x:DataType="vm:ImportViewModel"
+        Title="Import manifests from SteamDB" Width="900" Height="640" MinWidth="600" MinHeight="460"
+        WindowStartupLocation="CenterOwner">
+  <DockPanel Margin="20">
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+      <TextBlock Grid.Column="0" Classes="h2" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+        <Run Text="Import manifests for " /><Run Text="{Binding AppName}" />
+      </TextBlock>
+      <Button Grid.Column="1" Content="?" Command="{Binding ShowTutorialCommand}" ToolTip.Tip="How to copy manifests from SteamDB" Width="32" HorizontalContentAlignment="Center" />
+    </Grid>
+    <TextBlock DockPanel.Dock="Top" Classes="muted" TextWrapping="Wrap" Margin="0,0,0,8"
+               Text="Paste rows from a depot's Manifests tab on SteamDB, or plain manifest IDs, one per line." />
+    <TextBox DockPanel.Dock="Top" Text="{Binding PasteText}" AcceptsReturn="True" TextWrapping="NoWrap" Height="140"
+             FontFamily="{DynamicResource MonospaceFontFamily}" PlaceholderText="Paste here" AutomationProperties.Name="Pasted manifests" />
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,8,140,8,Auto" Margin="0,8,0,0">
+      <ComboBox Grid.Column="0" ItemsSource="{Binding Depots}" SelectedItem="{Binding SelectedDepot}" PlaceholderText="Depot" HorizontalAlignment="Stretch" />
+      <TextBox Grid.Column="2" Text="{Binding DepotIdText}" PlaceholderText="Depot ID" AutomationProperties.Name="Depot ID" />
+      <Button Grid.Column="4" Content="Paste from clipboard" Command="{Binding PasteFromClipboardCommand}" />
+    </Grid>
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
+      <Button Content="Import" Command="{Binding ImportCommand}" Classes="accent" />
+      <Button Content="Cancel" Command="{Binding CancelCommand}" IsCancel="True" />
+    </StackPanel>
+    <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,8">
+      <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" IsVisible="{Binding Summary, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <TextBlock Text="{Binding WarningText}" Foreground="#D13438" TextWrapping="Wrap" IsVisible="{Binding WarningText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    </StackPanel>
+    <DataGrid ItemsSource="{Binding Rows}" IsVisible="{Binding HasRows}" AutoGenerateColumns="False" CanUserResizeColumns="True" GridLinesVisibility="Horizontal">
+      <DataGrid.Columns>
+        <DataGridTemplateColumn Header="Use" Width="64" x:DataType="vm:ImportRowViewModel">
+          <DataGridTemplateColumn.CellTemplate>
+            <DataTemplate x:DataType="vm:ImportRowViewModel">
+              <CheckBox IsChecked="{Binding Include}" IsEnabled="{Binding CanInclude}" HorizontalAlignment="Center" />
+            </DataTemplate>
+          </DataGridTemplateColumn.CellTemplate>
+        </DataGridTemplateColumn>
+        <DataGridTextColumn Header="Line" Binding="{Binding Line}" x:DataType="vm:ImportRowViewModel" IsReadOnly="True" Width="76" />
+        <DataGridTextColumn Header="Date" Binding="{Binding Date}" x:DataType="vm:ImportRowViewModel" IsReadOnly="True" Width="170" />
+        <DataGridTextColumn Header="Manifest ID" Binding="{Binding ManifestId}" x:DataType="vm:ImportRowViewModel" IsReadOnly="True" Width="200" />
+        <DataGridTextColumn Header="Status" Binding="{Binding Status}" x:DataType="vm:ImportRowViewModel" IsReadOnly="True" Width="150" />
+        <DataGridTextColumn Header="Pasted text" Binding="{Binding Raw}" x:DataType="vm:ImportRowViewModel" IsReadOnly="True" Width="*" />
+      </DataGrid.Columns>
+    </DataGrid>
+  </DockPanel>
+</Window>

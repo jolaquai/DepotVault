@@ -10,9 +10,9 @@ public sealed class DialogService
 {
     public static Window MainWindow => (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
 
-    public Task<T> ShowAsync<T>(Window dialog)
+    public Task<T> ShowAsync<T>(Window dialog, Window owner = null)
     {
-        var owner = MainWindow;
+        owner ??= MainWindow;
         if (owner is null || !owner.IsVisible)
         {
             var tcs = new TaskCompletionSource<T>();

@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using DepotVault.App;
 using DepotVault.App.ViewModels;
 using DepotVault.App.Views;
 using DepotVault.Core;
@@ -96,6 +97,51 @@ internal static class Scenarios
                 Wait(() => job.IsFinished, pump, 60);
                 save(window, "downloads-done");
                 Console.WriteLine($"Finished: {job.State} {job.Error} reused {job.Counters.ReusedBytes} written {job.Counters.WrittenBytes}; version complete={vault.Library.Find(v.Id).IsComplete}");
+                break;
+            }
+            case "import":
+            {
+                var tvm = new TutorialViewModel(vault.Settings);
+                var tut = new TutorialDialog { DataContext = tvm };
+                tut.Show();
+                for (var i = 1; i <= tvm.Steps.Count; i++)
+                {
+                    if (tvm.IsLast)
+                        tvm.DontShowAgain = true;
+                    save(tut, $"tutorial-{i}");
+                    tvm.NextCommand.Execute(null);
+                }
+                pump();
+                Console.WriteLine($"Tutorial closed={!tut.IsVisible}, seen={vault.Settings.Current.TutorialSeen}, dontShowAgain={vault.Settings.Current.TutorialDontShowAgain}");
+
+                var lib = services.GetRequiredService<LibraryViewModel>();
+                shell.CurrentPage = lib;
+                lib.OnActivated();
+                pump();
+                var d = lib.Detail;
+                var before = d.History.Count;
+                d.ImportCommand.Execute(null);
+                pump();
+                var dialogs = services.GetRequiredService<AppDialogs>();
+                var dlg = dialogs.ActiveImport ?? throw new InvalidOperationException("Import dialog did not open.");
+                var vm = (ImportViewModel)dlg.DataContext;
+                vm.PasteText = """
+                    https://steamdb.info/depot/480001/manifests/
+                    Date	Relative	ManifestID
+                    15 August 2026 - 10:22:01 UTC	2 months ago	7777777777777777777
+                    3 May 2026 - 18:00:00 UTC	5 months ago	6666666666666666666
+                    14 March 2025 - 08:30:00 UTC	1 year ago	1111111111111111111
+                    not a manifest 12345678901
+                    5555555555555555555
+                    """;
+                pump();
+                Console.WriteLine($"Depot {vm.DepotIdText} ({vm.SelectedDepot}); {vm.Summary} {vm.WarningText}");
+                vm.Rows.First(r => r.ManifestId == "6666666666666666666").Include = false;
+                save(dlg, "import-preview");
+                vm.ImportCommand.Execute(null);
+                Wait(() => dialogs.ActiveImport is null, pump, 5);
+                Console.WriteLine($"Imported {vm.Added}; history {before} -> {d.History.Count}; status: {d.StatusText}; persisted {string.Join(", ", vault.Apps.Get(480000).History.Select(h => h.ManifestId))}");
+                save(window, "import-history");
                 break;
             }
             default:

@@ -40,9 +40,9 @@ Written 2026-10-08 when work moved from the user's Windows machine to a cloud se
 
 **Open threads for the remaining steps:**
 - Step 22 still needs one interactive check by the user on their machine (sign in through the dialog via password and via QR scan). Leave it `[~]`.
-- `AppDetailViewModel` raises `ImportRequested` (step 25), `MutableReviewRequested` (step 28) and `SwitchFailed` (step 27); nothing subscribes yet. Wire them where the dialogs are created (e.g. in `LibraryViewModel.OnSelectedAppChanged` or a shell-level dialog coordinator using `DialogService`).
+- `AppDetailViewModel` raises `MutableReviewRequested` (step 28) and `SwitchFailed` (step 27); nothing subscribes yet. Wire them like `ImportRequested`: subscribed in `LibraryViewModel.OnSelectedAppChanged`, dialogs created by the `AppDialogs` coordinator (`Services/AppDialogs.cs`).
 - Step 27 replaces the placeholder `DeclineSwitchPrompts` (`src/DepotVault.App/Services/SwitchPrompts.cs`, registered in `App.axaml.cs`) with real dialogs implementing `ISwitchPrompts` (Steam-running wait, copy consent with remember-my-choice).
-- Step 25: the Library empty state and Help page should link to the tutorial; Help page is still a placeholder (`HelpViewModel`/`HelpView`).
+- Step 25 tutorial screenshots: deferred to the user (local). `TutorialViewModel` loads `Assets/tutorial/step1.png`..`step4.png` if present; just drop the files in.
 - Step 26: settings UI binds to `Vault.Settings.Current` and must call `SettingsStore.Save()`; theme changes already apply live via `Settings.Changed` in `App.axaml.cs`. Library roots live only in `Settings.LibraryRoots`.
 - Step 29: when a job fails with `ManifestUnavailableException`, mark the matching `AppRecord.History` entry `Unavailable` (jobs only carry `Error` text today; add an error kind). `AppRecord.ForceStrategy` already works in the switcher and needs UI.
 - Core composition root is `src/DepotVault.Core/Vault.cs`; UI gets everything through it via DI.
@@ -50,10 +50,10 @@ Written 2026-10-08 when work moved from the user's Windows machine to a cloud se
 ## Status
 
 - **State:** in-progress
-- **Current step:** 25 - Import dialog + tutorial (step 22 interactive check pending)
+- **Current step:** 26 - Settings screen (step 22 interactive check pending)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 4f358a1 (parent of HEAD)
+- **Last synced commit:** 6c674df (parent of HEAD)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -298,11 +298,12 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Progress:** 75 passed, 2 skipped (DPAPI Windows-only; reflink: cloud volume is ext4, no btrfs/xfs tooling to build a loop volume).
 - **Commit:** `fix linux test failures`
 
-### 25. Import dialog + tutorial `[ ]`
+### 25. Import dialog + tutorial `[x]`
 
-- **Files:** `src/DepotVault.App/Views/ImportDialog.axaml`, `TutorialDialog.axaml`, `Assets/tutorial/*`
+- **Files:** `src/DepotVault.App/Views/ImportDialog.axaml`, `TutorialDialog.axaml`, `ViewModels/ImportViewModel.cs`, `TutorialViewModel.cs`, `Services/AppDialogs.cs`, `Assets/tutorial/*` (deferred)
 - **Do:** import dialog: paste, depot pick, preview grid, commit. Tutorial (4 steps: SteamDB game -> Depots, Manifests tab (may need SteamDB sign-in), copy rows, paste in DepotVault) with screenshots as assets; reachable from empty state, dialog "?" button, Help menu; "don't show again" in settings.
 - **Verify:** run app, import a sample paste end to end.
+- **Progress:** verified with `UiSnap import`: tutorial pages render, "don't show again" persists; import opened from app detail, depot detected from the pasted URL (480001), preview showed 3 new / 1 duplicate / 1 invalid, one row unticked, 2 imported and persisted to `apps/480000.json`, history grid refreshed. Screenshots pending (user, local).
 - **Commit:** `add import dialog and tutorial`
 
 ### 26. Settings screen `[ ]`
@@ -363,6 +364,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 22 follow-up: QR login is the default tab and starts when the dialog opens (no password typed into DepotVault); a browser login cannot replace it because Steam web logins only yield web-audience tokens, while CM logon needs a client refresh token. Step 23: no app icons in v1 (would need CDN image fetching); apps are added from installed Steam games or by App ID. History download picks, per selected depot, the newest imported manifest not newer than the chosen row. Switch uses a placeholder `ISwitchPromptsFactory` that declines prompts until step 27. Verified with `UiSnap pages` and `UiSnap library-actions`.
 - 2026-10-08 - Step 24: verified headlessly with `UiSnap downloads-live` against real Steam (depot 228988, 3 MiB/s cap): live progress rendered, pause kept 4 resume bitmaps at 11.2 MiB, resume reused 11.7 MB and wrote 17.5 MB, version complete.
 - 2026-10-08 - Step 24a added: first Linux run. Version delete now clears read-only on all platforms (Linux kept the shared inode read-only for the surviving sibling); scanner test looked up manifest names with Windows separators. Linux `FICLONE` path still unexecuted (no reflink-capable volume in the cloud).
+- 2026-10-08 - Step 25: tutorial ships text-only (user's call: no SteamDB screenshots from the cloud; they add `Assets/tutorial/step1..4.png` locally, loaded automatically when present). Dialogs are created by a new `AppDialogs` coordinator (single import dialog at a time; tutorial auto-opens over the import dialog unless "don't show again" is set). Import dialog takes a depot from the pasted SteamDB URL, the app's depot list, or a typed depot ID; rows can be unticked. Library empty state and Help page link to the tutorial. UiSnap scenario `import` added.
 
 ## Open questions
 
