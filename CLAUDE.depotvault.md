@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 9 - Chunk pipeline (manual verify pending for 5, 7)
+- **Current step:** 10 - Pause/resume (manual verify pending for 5, 7, 9)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** a571c17 (parent of the step commit)
+- **Last synced commit:** edfcff1 (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -148,11 +148,12 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet test --solution DepotVault.slnx`
 - **Commit:** `add download job queue`
 
-### 9. Chunk pipeline `[ ]`
+### 9. Chunk pipeline `[~]`
 
 - **Files:** `src/DepotVault.Core/Download/ChunkPipeline.cs`, `FilePlanner.cs`, tests
 - **Do:** per-job pipeline. Plan per file: dedupe hit -> share (step 14 provides the index; stub `IContentIndex` returning no hit until then); older local version of same path -> chunk diff (copy unchanged chunks locally, fetch rest); else full fetch. Preallocate with `File.OpenHandle(..., preallocationSize)`. Bounded `Channel<ChunkWork>` with `MaxConcurrentChunks` workers: CDN download into `ArrayPool<byte>` buffers, `DepotChunk.Process` (decrypt + decompress), chunk checksum, `RandomAccess.Write(handle, data, offset)`. Finalize: verify file SHA-1 for fetched files (parallel), write `state.json`.
 - **Verify:** `dotnet test --solution DepotVault.slnx`; manual: download a small owned depot, all file hashes match the manifest.
+- **Progress:** pipeline, planner (chunk diff), `CdnChunkSource`, `BandwidthLimiter`, `DepotJobRunner` + `IDownloadTargetResolver`, `VersionState` (state.json) done; unit tests pass. `dvcli download <app> <depot> <manifest> <dir>` added. Manual check pending: download a small owned depot, all hashes verify.
 - **Commit:** `add chunk download pipeline`
 
 ### 10. Pause/resume `[ ]`
@@ -311,6 +312,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 2: `JsonContext` deferred to step 3 (an empty source-gen context does not compile). Per-depot manifests stored as `versions/<versionId>/<depotId>.manifest.bin` since a version can merge several depots.
 - 2026-10-08 - Added `tools/DepotVault.Cli` (`dvcli`) console harness for manual Steam verification (steps 5, 7, 9, 14). User logs in once; later checks reuse the saved token. Steps whose only open item is a Steam-backed manual check stay `[~]` until verified and work continues with the next step.
 - 2026-10-08 - Step 7: `CdnPool` ranks `CdnServer` descriptors wrapping SteamKit2 `Server` (its setters are internal, so tests cannot construct it).
+- 2026-10-08 - Step 9: `state.json` model (`VersionState`, `FileSnapshot`, `LinkKind`) created here instead of step 16 since the pipeline writes it. `Sha1Hash` 20-byte struct created here (shared with step 13). `AtomicJsonStore.ScheduleSave(Func<T>)` added so debounced saves serialize a snapshot.
 
 ## Open questions
 

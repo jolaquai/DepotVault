@@ -1,5 +1,6 @@
 using System.Text;
 using DepotVault.Cli;
+using DepotVault.Core.Download;
 using DepotVault.Core.Library;
 using DepotVault.Core.Persistence;
 using DepotVault.Core.Steam;
@@ -85,8 +86,33 @@ switch (args.FirstOrDefault())
         }
         break;
     }
+    case "download" when args.Length >= 5:
+    {
+        if (!await LogOnAsync())
+            return 1;
+        var appId = uint.Parse(args[1]);
+        var depotId = uint.Parse(args[2]);
+        var manifestId = ulong.Parse(args[3]);
+        var dir = Path.GetFullPath(args[4]);
+        using var cdnClient = new CdnClient(session.Client);
+        var keys = new DepotKeyCache(session);
+        var pool = new CdnPool(session);
+        var runner = new DepotJobRunner(new ManifestService(session, keys, pool, cdnClient), id => new CdnChunkSource(id, pool, cdnClient, keys), new DirectoryTargetResolver(dir), () => 16);
+        var job = new DownloadJob { AppId = appId, DepotId = depotId, ManifestId = manifestId, TargetVersionId = "cli" };
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var run = runner.RunAsync(job, ct);
+        while (!run.IsCompleted)
+        {
+            await Task.WhenAny(run, Task.Delay(1000, ct));
+            var c = job.Counters;
+            Console.Write($"\r{c.CompletedBytes / 1048576.0,10:N1} / {c.TotalBytes / 1048576.0:N1} MiB  net {c.DownloadedBytes / 1048576.0:N1} MiB  reused {c.ReusedBytes / 1048576.0:N1} MiB   ");
+        }
+        await run;
+        Console.WriteLine($"\nDone in {sw.Elapsed}. All file hashes verified against the manifest.");
+        break;
+    }
     default:
-        Console.WriteLine("dvcli login | login-qr | whoami | logout | app <appid> | manifest <appid> <depotid> [manifestid]");
+        Console.WriteLine("dvcli login | login-qr | whoami | logout | app <appid> | manifest <appid> <depotid> [manifestid] | download <appid> <depotid> <manifestid> <dir>");
         return 1;
 }
 return 0;
