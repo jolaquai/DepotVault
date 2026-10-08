@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 20 - SteamDB paste parser
+- **Current step:** 21 - App shell + DI + navigation
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 385775c (parent of the step commit)
+- **Last synced commit:** 18b27f7 (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -226,7 +226,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet test --solution DepotVault.slnx` (temp-dir fake Steam library)
 - **Commit:** `add version switcher`
 
-### 20. SteamDB paste parser `[ ]`
+### 20. SteamDB paste parser `[x]`
 
 - **Files:** `src/DepotVault.Core/Import/SteamDbParser.cs`, tests
 - **Do:** span-based line splitting (`MemoryExtensions.EnumerateLines`), no regex in the hot loop. Per line extract first 15-20 digit integer as manifest ID (ulong) and parse the date with invariant culture over known SteamDB formats (fallback null). Detect depot id from a pasted `steamdb.info/depot/<id>/manifests/` URL. Dedupe against existing history; produce rows with status new/duplicate/invalid. Plain ID lists must work.
