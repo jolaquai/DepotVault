@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 12 - Library model (manual verify pending for 5, 7, 9)
+- **Current step:** 12 - Library model
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** f832ee6 (parent of the step commit)
+- **Last synced commit:** 6d42930 (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -118,7 +118,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet test --solution DepotVault.slnx`
 - **Commit:** `add secret store`
 
-### 5. Steam session + auth `[~]`
+### 5. Steam session + auth `[x]`
 
 - **Files:** `src/DepotVault.Core/Steam/SteamSession.cs`, `IGuardPrompt.cs`, `QrLogin.cs`
 - **Do:** `SteamClient` + `CallbackManager` on a dedicated pump thread; async wrappers via `TaskCompletionSource`. Credentials flow with `SteamAuthentication.BeginAuthSessionViaCredentialsAsync` and an `IAuthenticator` bridging to `IGuardPrompt` (email code, TOTP, mobile confirm polling). QR flow via `BeginAuthSessionViaQRAsync`, refresh on `ChallengeURLChanged`. `ShouldRememberPassword = true`, persist token via `SecretStore`, log in with token on start, fall back to prompt on expiry. Reconnect with backoff, re-auth via token.
@@ -133,12 +133,12 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet test --solution DepotVault.slnx`
 - **Commit:** `add pics depot metadata`
 
-### 7. Depot keys, manifest codes, CDN pool, manifest fetch `[~]`
+### 7. Depot keys, manifest codes, CDN pool, manifest fetch `[x]`
 
 - **Files:** `src/DepotVault.Core/Steam/DepotKeyCache.cs`, `CdnPool.cs`, `ManifestService.cs`
 - **Do:** `SteamApps.GetDepotDecryptionKey` cached in memory. `SteamContent.GetManifestRequestCode(depot, app, manifestId, "public")`. `SteamContent.GetServersForSteamPipe()` ranked pool (prefer SteamCache/CDN types, penalty + backoff on failing hosts). `CDN.Client.DownloadManifestAsync` -> `DecryptFilenames(key)` -> save `versions/<versionId>/manifest.bin`. Surface "unavailable" state when a historic manifest is purged.
 - **Verify:** `dotnet build DepotVault.slnx`; manual: fetch a known owned manifest, `manifest.bin` loads back with file count > 0.
-- **Progress:** code done, unit tests for `CdnPool` pass; `dvcli app <appid>` and `dvcli manifest <appid> <depotid> [manifestid]` added. Manual check pending (needs saved token): `dvcli manifest` must print file count > 0 after reload.
+- **Progress:** verified 2026-10-08: `dvcli manifest 228980 228988` fetched manifest 6645201662696499616 (5 files), reloaded from disk with 5 files.
 - **Commit:** `add manifest fetch and cdn pool`
 
 ### 8. Download job model + queue `[x]`
@@ -148,12 +148,12 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet test --solution DepotVault.slnx`
 - **Commit:** `add download job queue`
 
-### 9. Chunk pipeline `[~]`
+### 9. Chunk pipeline `[x]`
 
 - **Files:** `src/DepotVault.Core/Download/ChunkPipeline.cs`, `FilePlanner.cs`, tests
 - **Do:** per-job pipeline. Plan per file: dedupe hit -> share (step 14 provides the index; stub `IContentIndex` returning no hit until then); older local version of same path -> chunk diff (copy unchanged chunks locally, fetch rest); else full fetch. Preallocate with `File.OpenHandle(..., preallocationSize)`. Bounded `Channel<ChunkWork>` with `MaxConcurrentChunks` workers: CDN download into `ArrayPool<byte>` buffers, `DepotChunk.Process` (decrypt + decompress), chunk checksum, `RandomAccess.Write(handle, data, offset)`. Finalize: verify file SHA-1 for fetched files (parallel), write `state.json`.
 - **Verify:** `dotnet test --solution DepotVault.slnx`; manual: download a small owned depot, all file hashes match the manifest.
-- **Progress:** pipeline, planner (chunk diff), `CdnChunkSource`, `BandwidthLimiter`, `DepotJobRunner` + `IDownloadTargetResolver`, `VersionState` (state.json) done; unit tests pass. `dvcli download <app> <depot> <manifest> <dir>` added. Manual check pending: download a small owned depot, all hashes verify.
+- **Progress:** verified 2026-10-08: `dvcli download 228980 228988 6645201662696499616` downloaded 27.9 MiB, all file SHA-1s matched.
 - **Commit:** `add chunk download pipeline`
 
 ### 10. Pause/resume `[x]`
