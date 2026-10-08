@@ -3,5 +3,45 @@
              xmlns:vm="using:DepotVault.App.ViewModels"
              x:Class="DepotVault.App.Views.DownloadsView"
              x:DataType="vm:DownloadsViewModel">
-  <TextBlock Classes="h1" Text="{Binding Title}" />
+  <DockPanel>
+    <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,12">
+      <TextBlock Classes="h1" Text="Downloads" />
+      <TextBlock Classes="muted" Text="{Binding Summary}" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Content="Pause all" Command="{Binding PauseAllCommand}" />
+        <Button Content="Resume all" Command="{Binding ResumeAllCommand}" />
+        <Button Content="Clear finished" Command="{Binding ClearFinishedCommand}" />
+      </StackPanel>
+    </StackPanel>
+    <TextBlock DockPanel.Dock="Top" Classes="muted" IsVisible="{Binding IsEmpty}" Text="Nothing queued. Pick a version on the Library page to download it." />
+    <ScrollViewer>
+      <ItemsControl ItemsSource="{Binding Jobs}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:JobItemViewModel">
+            <Border Margin="0,0,12,8" Padding="12" CornerRadius="6" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto">
+                <TextBlock Grid.Row="0" Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding StateText}" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" MaxWidth="420" />
+                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Classes="muted" FontSize="12" Text="{Binding Subtitle}" />
+                <ProgressBar Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8" Minimum="0" Maximum="100" Value="{Binding Progress}" />
+                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="16">
+                  <TextBlock FontSize="12" Text="{Binding ProgressText}" />
+                  <TextBlock FontSize="12" Text="{Binding SpeedText}" />
+                  <TextBlock FontSize="12" Classes="muted" Text="{Binding SavedText}" />
+                </StackPanel>
+                <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                  <Button Content="▲" Command="{Binding MoveUpCommand}" ToolTip.Tip="Move up" Padding="8,2" />
+                  <Button Content="▼" Command="{Binding MoveDownCommand}" ToolTip.Tip="Move down" Padding="8,2" />
+                  <Button Content="Pause" Command="{Binding PauseCommand}" IsVisible="{Binding CanPause}" Padding="8,2" />
+                  <Button Content="Resume" Command="{Binding ResumeCommand}" IsVisible="{Binding CanResume}" Padding="8,2" />
+                  <Button Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}" Padding="8,2" />
+                  <Button Content="Remove" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}" Padding="8,2" />
+                </StackPanel>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </DockPanel>
 </UserControl>

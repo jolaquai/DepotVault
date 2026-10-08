@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 24 - Downloads screen (step 22 interactive check pending)
+- **Current step:** 25 - Import dialog + tutorial (step 22 interactive check pending)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** c5bddce (parent of the step commit)
+- **Last synced commit:** fbd71db (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -255,7 +255,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** run app with seeded library data; screens render and actions invoke Core.
 - **Commit:** `add library and app detail screens`
 
-### 24. Downloads screen `[ ]`
+### 24. Downloads screen `[x]`
 
 - **Files:** `src/DepotVault.App/Views/DownloadsView.axaml`, `ViewModels/DownloadsViewModel.cs`
 - **Do:** queue with progress, speed (EWMA), ETA, dedupe savings; pause/resume/cancel/reorder. Poll counters on a 250 ms `DispatcherTimer`.
@@ -325,6 +325,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 19: adoption loads the installed manifests (ACF `InstalledDepots`) to tell manifest-owned from foreign files; no foreign files on the same volume = one directory rename, otherwise owned files move individually and foreign files stay. Cross-volume adoption counts as a copy and goes through the copy rule. Per-app install state (`InstallState`: mode, version, placed files with size/mtime/link kind) lives in `apps/<appid>.json`; leaving per-file mode deletes unchanged placed files and stages changed independent copies. Foreign files written into a junctioned version dir are moved into a real install dir (per-file mode) on the next switch. ACF `buildid` is written from `SwitchRequest.AcfBuildId` (caller passes the app's current public build so Steam sees no pending update); `InstalledDepots` gets the target manifests. `AppRecord.ForceStrategy` (junction/hardlink/symlink/copy) is honored here already (UI in step 29).
 - 2026-10-08 - Step 21: added `Core/Vault.cs` composition root (all services + queue/runner/resolver wiring) and `Core/Logging/FileLoggerProvider.cs`; DI registers `Vault` and page VMs. Shell is `Views/ShellWindow.axaml`. GUI verification uses `tools/DepotVault.UiSnap` (Avalonia headless + Skia, seeds a temp data dir, renders pages/scenarios to PNG) because the desktop must not be driven while the user is using it; `dotnet run --project tools/DepotVault.UiSnap -- <outDir> [dataDir] [scenario]`.
 - 2026-10-08 - Step 22 follow-up: QR login is the default tab and starts when the dialog opens (no password typed into DepotVault); a browser login cannot replace it because Steam web logins only yield web-audience tokens, while CM logon needs a client refresh token. Step 23: no app icons in v1 (would need CDN image fetching); apps are added from installed Steam games or by App ID. History download picks, per selected depot, the newest imported manifest not newer than the chosen row. Switch uses a placeholder `ISwitchPromptsFactory` that declines prompts until step 27. Verified with `UiSnap pages` and `UiSnap library-actions`.
+- 2026-10-08 - Step 24: verified headlessly with `UiSnap downloads-live` against real Steam (depot 228988, 3 MiB/s cap): live progress rendered, pause kept 4 resume bitmaps at 11.2 MiB, resume reused 11.7 MB and wrote 17.5 MB, version complete.
 
 ## Open questions
 
