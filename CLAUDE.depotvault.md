@@ -48,10 +48,10 @@ Written 2026-10-08 when work moved from the user's Windows machine to a cloud se
 ## Status
 
 - **State:** implemented; open items are user-side only (step 22 interactive sign-in check, step 25 tutorial screenshots)
-- **Current step:** 31 - macOS support
+- **Current step:** none (all steps done except the step 22 interactive check)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 2fdd0f5 (parent of HEAD)
+- **Last synced commit:** 6cc1d2f (parent of HEAD)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -345,12 +345,12 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Progress:** first run (2f4e05a) green on all 5 jobs: 86 tests, 81 passed / 5 skipped per job; on btrfs, xfs and ReFS the reflink test ran (hard-asserted via `DV_EXPECT_REFLINK`) while the hardlink-only tests skipped; UiSnap scenarios passed on Linux and Windows. Actions bumped to v5 (Node 20 deprecation).
 - **Commit:** `add ci workflow`
 
-### 31. macOS support `[~]`
+### 31. macOS support `[x]`
 
 - **Files:** `src/DepotVault.Core/Linking/Mac/*`, `Linking/ILinkStrategy.cs`, `Persistence/MacKeychain.cs`, `Persistence/SecretStore.cs`, `SteamInstall/SteamLocator.cs`, `Library/LibraryRoots.cs`, `.github/workflows/ci.yml`, `tools/DepotVault.UiSnap/Scenarios.cs`, tests
 - **Do:** `MacLinkStrategy`: `clonefile` reflink (APFS always clones; the existing reflink -> hardlink -> symlink -> copy order only falls back when cloning really fails, e.g. HFS+), `link()`, symlinks, dir symlink as junction, identity via `stat`/`lstat` (`$INODE64` entry points on x64). Steam at `~/Library/Application Support/Steam`, process `steam_osx`. Paths compare case-insensitively on macOS (APFS default). Token in the Keychain (legacy `SecKeychain*` generic-password API, service `DepotVault`, account = full `auth.bin` path; UI prompts only from the app/CLI, never from tests), falling back to the 0600 file. CI: `macos-apfs` (reflink + Keychain + all UiSnap scenarios) and `macos-hfs` (HFS+ disk image, non-reflink path) with a throwaway unlocked CI keychain and `DV_EXPECT_KEYCHAIN=1`.
 - **Verify:** CI green on both macOS jobs (nothing macOS can run in the cloud session).
-- **Progress:** first CI run (2fdd0f5): APFS tests green (reflink + Keychain), HFS+ had 3 failures from 1-second mtimes, APFS UiSnap `library-actions` failed on an OS-dependent default depot selection. Both fixed in the scenario/tests; waiting for the next run.
+- **Progress:** first CI run (2fdd0f5): APFS tests green (reflink + Keychain), HFS+ had 3 failures from 1-second mtimes, APFS UiSnap `library-actions` failed on an OS-dependent default depot selection. Both fixed in the scenario/tests; run on 6cc1d2f green on all 7 jobs (Linux ext4/btrfs/xfs, Windows NTFS/ReFS, macOS APFS/HFS+).
 - **Commit:** `add macos support`
 
 ## Risks
