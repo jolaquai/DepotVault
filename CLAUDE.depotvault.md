@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 15 - Mutable-file review
+- **Current step:** 16 - Snapshot + self-heal
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 0b5c26a (parent of the step commit)
+- **Last synced commit:** 9b76fe3 (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -191,7 +191,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet test --solution DepotVault.slnx`; manual: second version of a game downloads with deduped bytes > 0.
 - **Commit:** `add dedupe sharing`
 
-### 15. Mutable-file review `[ ]`
+### 15. Mutable-file review `[x]`
 
 - **Files:** `src/DepotVault.Core/Library/MutableFileScanner.cs`, `Library/AppRecord.cs`, tests
 - **Do:** heuristic scanner over a manifest's file list returning candidate mutable files (config/ini/cfg/json/xml/sav/dat patterns, cache/save/log/config dirs, files whose mtime changed since link, files reported by self-heal). Per-app persisted decisions `Share | Isolate` keyed by relPath or pattern in `apps/<appid>.json`. Unreviewed = treated as normal shared. API consumed by the UI dialog (step 28), linker (14, 19) and self-heal (16).
@@ -317,6 +317,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 11: reflink support on Windows detected via `FSCTL_GET_INTEGRITY_INFORMATION` (fails on non-ReFS) and integrity settings are mirrored onto the clone target. Linux file identity uses `statx` (arch-independent layout). Fallback logic lives in `Linker` + `LinkRules` in `VolumeCapabilities.cs`. Dev box has no ReFS/Dev Drive, so the reflink test is skipped here.
 - 2026-10-08 - Step 12: library roots are owned by `Settings.LibraryRoots` (single source); `library.json` holds apps (name, active/adopted version) and versions. Root suggestion is `<steam library>/DepotVault` (inside the library folder, guaranteed same volume). `LibraryTargetResolver` (download target + previous-version chunk diff) added here.
 - 2026-10-08 - Step 14: manual check used the same manifest (228988/6645201662696499616) for two library versions via `dvcli lib-download`; second version deduped 29,212,173 bytes with 0 downloaded. Share policy is injected into `LibraryTargetResolver` via `SharePolicy` (enabled flag, never-share predicate, isolate predicate); step 15 provides the per-app predicates. `PathGlob` (simple `*`/`?` matcher) added for exclusion globs.
+- 2026-10-08 - Step 15: decisions are `MutableRule { Pattern, Decision }` on `AppRecord` (`Unreviewed` = enum default); explicit Share overrides per-app exclusions and global globs. `MutableFileScanner.BuildPolicy` produces the `SharePolicy` for the download resolver.
 
 ## Open questions
 
