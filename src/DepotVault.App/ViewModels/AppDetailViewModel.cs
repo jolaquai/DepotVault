@@ -19,6 +19,7 @@ public partial class DepotItemViewModel(DepotInfo depot, bool selected, Action c
     public string Name => string.IsNullOrEmpty(Depot.Name) ? $"Depot {Depot.DepotId}" : Depot.Name;
     public string Platform => string.Join(" ", new[] { Depot.OsList, Depot.OsArch is { Length: > 0 } a ? a + "-bit" : null, Depot.Language }.Where(s => !string.IsNullOrEmpty(s)));
     public string Current => Depot.CurrentManifestId == 0 ? "" : Depot.CurrentManifestId.ToString();
+    public string Size => Depot.CurrentManifestSize > 0 ? Format.Bytes((long)Depot.CurrentManifestSize) : Depot.MaxSize > 0 ? Format.Bytes((long)Depot.MaxSize) : "";
     public bool IsDownloadable => Depot.IsDownloadable;
 
     [ObservableProperty]

@@ -19,8 +19,8 @@ internal static class Seed
         app.Depots =
         [
             new DepotInfo { DepotId = 480001, Name = "Sample Game Content", CurrentManifestId = 1234567890123456789, CurrentManifestSize = 4294967296 },
-            new DepotInfo { DepotId = 480002, Name = "Sample Game Windows Binaries", OsList = "windows", CurrentManifestId = 2345678901234567890 },
-            new DepotInfo { DepotId = 480003, Name = "Sample Game Linux Binaries", OsList = "linux", CurrentManifestId = 3456789012345678901 },
+            new DepotInfo { DepotId = 480002, Name = "Sample Game Windows Binaries", OsList = "windows", CurrentManifestId = 2345678901234567890, CurrentManifestSize = 52428800 },
+            new DepotInfo { DepotId = 480003, Name = "Sample Game Linux Binaries", OsList = "linux", CurrentManifestId = 3456789012345678901, MaxSize = 47185920 },
         ];
         app.History =
         [

@@ -48,10 +48,10 @@ Written 2026-10-08 when work moved from the user's Windows machine to a cloud se
 ## Status
 
 - **State:** implemented; open items are user-side only (step 22 interactive sign-in check, step 25 tutorial screenshots)
-- **Current step:** 33 - Depot sizes
+- **Current step:** 34 - Manifest branches (blocked on a SteamDB sample from the user)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** ed131f1 (parent of HEAD)
+- **Last synced commit:** cec2da1 (parent of HEAD)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -361,11 +361,12 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Progress:** 90 tests pass (5 new: release, delete active, history cascade sparing the Original, remove game, Steam-running cancel). UiSnap `removal` (fake Steam): history delete of the active download reverted the game and kept the Original; keep-only import removed 2 manifests and their download; remove game restored the plain install and original ACF and deleted all data.
 - **Commit:** `add removal flows`
 
-### 33. Depot sizes `[ ]`
+### 33. Depot sizes `[x]`
 
 - **Files:** `src/DepotVault.App/ViewModels/AppDetailViewModel.cs`, `AppDetailView.axaml`
 - **Do:** show each depot's size (current public manifest size from PICS, `maxsize` as fallback) in the depot list so the main game vs DLC depots are obvious at a glance.
 - **Verify:** UiSnap `pages` render.
+- **Progress:** depot list got a header row and a Size column (current public manifest size, `maxsize` fallback); platform moved under the name so long names stay readable at the default window width. Verified with UiSnap `pages` (seed depots now carry sizes).
 - **Commit:** `show depot sizes`
 
 ### 34. Manifest branches `[!]`
