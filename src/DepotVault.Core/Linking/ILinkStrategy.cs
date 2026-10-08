@@ -1,4 +1,5 @@
 using DepotVault.Core.Linking.Linux;
+using DepotVault.Core.Linking.Mac;
 using DepotVault.Core.Linking.Win;
 
 namespace DepotVault.Core.Linking;
@@ -22,6 +23,7 @@ public static class LinkStrategy
     public static ILinkStrategy CreateForCurrentPlatform() =>
         OperatingSystem.IsWindows() ? new WindowsLinkStrategy()
         : OperatingSystem.IsLinux() ? new LinuxLinkStrategy()
+        : OperatingSystem.IsMacOS() ? new MacLinkStrategy()
         : throw new PlatformNotSupportedException();
 
     public static void RemoveDirectoryLink(string path)

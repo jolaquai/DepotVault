@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using DepotVault.Core.Library;
 using Microsoft.Win32;
 using SteamKit2;
 
@@ -30,12 +31,13 @@ public sealed class SteamLocator(string steamPath)
             return !string.IsNullOrEmpty(reg) && Directory.Exists(reg) ? System.IO.Path.GetFullPath(reg) : null;
         }
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        string[] candidates =
-        [
-            System.IO.Path.Combine(home, ".steam", "steam"),
-            System.IO.Path.Combine(home, ".local", "share", "Steam"),
-            System.IO.Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam"),
-        ];
+        string[] candidates = OperatingSystem.IsMacOS()
+            ? [System.IO.Path.Combine(home, "Library", "Application Support", "Steam")]
+            : [
+                System.IO.Path.Combine(home, ".steam", "steam"),
+                System.IO.Path.Combine(home, ".local", "share", "Steam"),
+                System.IO.Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam"),
+            ];
         foreach (var c in candidates)
         {
             if (Directory.Exists(System.IO.Path.Combine(c, "steamapps")))
@@ -48,7 +50,7 @@ public sealed class SteamLocator(string steamPath)
     {
         var file = System.IO.Path.Combine(SteamPath, "steamapps", "libraryfolders.vdf");
         var result = new List<SteamLibrary>();
-        var seen = new HashSet<string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        var seen = new HashSet<string>(LibraryRoots.PathComparer);
         if (File.Exists(file))
         {
             var kv = KeyValue.LoadAsText(file);
@@ -108,7 +110,7 @@ public sealed class SteamLocator(string steamPath)
 
     public static bool IsSteamRunning()
     {
-        string[] names = OperatingSystem.IsWindows() ? ["steam"] : ["steam", "steamwebhelper", "steam-runtime-launcher-service"];
+        string[] names = OperatingSystem.IsWindows() ? ["steam"] : OperatingSystem.IsMacOS() ? ["steam_osx"] : ["steam", "steamwebhelper", "steam-runtime-launcher-service"];
         foreach (var name in names)
         {
             var procs = Process.GetProcessesByName(name);

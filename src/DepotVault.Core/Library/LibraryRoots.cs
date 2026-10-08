@@ -44,5 +44,5 @@ public sealed class LibraryRoots(Func<IReadOnlyList<string>> configured, ILinkSt
 
     public static string Normalize(string path) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
 
-    public static StringComparer PathComparer => OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+    public static StringComparer PathComparer => OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 }

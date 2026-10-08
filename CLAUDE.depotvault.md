@@ -48,10 +48,10 @@ Written 2026-10-08 when work moved from the user's Windows machine to a cloud se
 ## Status
 
 - **State:** implemented; open items are user-side only (step 22 interactive sign-in check, step 25 tutorial screenshots)
-- **Current step:** none (all steps done except the step 22 interactive check)
+- **Current step:** 31 - macOS support
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 2f4e05a (parent of HEAD)
+- **Last synced commit:** 2146741 (parent of HEAD)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -66,6 +66,7 @@ Desktop app (Windows + Linux, Avalonia) that downloads specific historic Steam a
 - No handling/curation of game save data beyond the mutable-file prompt (§ decisions).
 - No auto-copy fallback; copy is always opt-in.
 - No libsecret on Linux in v1.
+- No macOS packaging, code signing or notarization (user: macOS is a courtesy platform).
 
 ## Constraints and decisions
 
@@ -74,13 +75,13 @@ Desktop app (Windows + Linux, Avalonia) that downloads specific historic Steam a
 - **Steam access:** SteamKit2 referenced directly. Rejected: DepotDownloader subprocess.
 - **Persistence:** JSON only, System.Text.Json source-gen `JsonSerializerContext`, atomic writes (tmp + `File.Move` overwrite). Rejected: SQLite/LiteDB.
 - **Manifest history:** manual SteamDB paste import + tutorial dialog. PICS used for depot metadata only.
-- **Platforms:** Windows + Linux.
+- **Platforms:** Windows + Linux; macOS added in step 31 (code + CI only, no packaging).
 - **Link order (dedupe and switcher):** reflink -> hardlink -> symlink -> copy (opt-in only) -> error. Whole-folder junction (Linux: dir symlink) preferred in the switcher when the install dir holds only manifest-owned files. Reflink first because it gives zero extra space with full write isolation where the FS supports it (ReFS/Dev Drive, btrfs, XFS).
 - **Copy fallback:** setting `CopyFallback = Unset | Never | Always`. If `Unset` and copy is needed: dialog with "remember my choice". Never silent.
 - **Dedupe:** enabled by default. Hash-identical files (SHA-1 + size) across versions are shared.
 - **Mutable files (resolved Q2):** shared mutable files (configs etc.) are not necessarily leaks; users may want settings to carry across versions. So no blanket exclusion and no forced copy. Instead: heuristically collect plausibly-mutable files per app (configs, ini/cfg/json/xml/sav, cache/save/log dirs), show a review dialog, and let the user pick per file/pattern: **Share** (link as normal, writes intentionally propagate) or **Isolate** (reflink, else copy; never hardlink). Decision stored per app in `apps/<appid>.json`. Unreviewed files are treated as normal shared files. Files marked Share are skipped by self-heal (no detach, no auto-exclusion). Rejected: global exclusion globs as default behavior; forced small-file copy regardless of `CopyFallback`.
 - **Login:** user/pass + Steam Guard (email/TOTP/mobile confirm), QR, persisted refresh token.
-- **Token protection:** Windows DPAPI (`ProtectedData`, CurrentUser); Linux 0600 file.
+- **Token protection:** Windows DPAPI (`ProtectedData`, CurrentUser); Linux 0600 file; macOS Keychain by default with automatic fallback to the 0600 file (no setting; the file is only the weaker fallback).
 - **Library layout:** one library root per volume (suggested next to each Steam library folder) so links to the install are possible. `<root>/<appid>/<versionId>/<files>`; multiple depots merge into one version folder.
 - **Progress:** `Interlocked` byte counters polled by a 250 ms UI timer. Rejected: per-chunk UI events.
 - **Interop:** `LibraryImport` source-gen P/Invoke; capability probed once per volume and cached.
@@ -344,6 +345,14 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Progress:** first run (2f4e05a) green on all 5 jobs: 86 tests, 81 passed / 5 skipped per job; on btrfs, xfs and ReFS the reflink test ran (hard-asserted via `DV_EXPECT_REFLINK`) while the hardlink-only tests skipped; UiSnap scenarios passed on Linux and Windows. Actions bumped to v5 (Node 20 deprecation).
 - **Commit:** `add ci workflow`
 
+### 31. macOS support `[~]`
+
+- **Files:** `src/DepotVault.Core/Linking/Mac/*`, `Linking/ILinkStrategy.cs`, `Persistence/MacKeychain.cs`, `Persistence/SecretStore.cs`, `SteamInstall/SteamLocator.cs`, `Library/LibraryRoots.cs`, `.github/workflows/ci.yml`, `tools/DepotVault.UiSnap/Scenarios.cs`, tests
+- **Do:** `MacLinkStrategy`: `clonefile` reflink (APFS always clones; the existing reflink -> hardlink -> symlink -> copy order only falls back when cloning really fails, e.g. HFS+), `link()`, symlinks, dir symlink as junction, identity via `stat`/`lstat` (`$INODE64` entry points on x64). Steam at `~/Library/Application Support/Steam`, process `steam_osx`. Paths compare case-insensitively on macOS (APFS default). Token in the Keychain (legacy `SecKeychain*` generic-password API, service `DepotVault`, account = full `auth.bin` path; UI prompts only from the app/CLI, never from tests), falling back to the 0600 file. CI: `macos-apfs` (reflink + Keychain + all UiSnap scenarios) and `macos-hfs` (HFS+ disk image, non-reflink path) with a throwaway unlocked CI keychain and `DV_EXPECT_KEYCHAIN=1`.
+- **Verify:** CI green on both macOS jobs (nothing macOS can run in the cloud session).
+- **Progress:** code + CI written; Linux build/tests green, macOS unverified until the CI run.
+- **Commit:** `add macos support`
+
 ## Risks
 
 - SteamDB format/access changes: parser stays tolerant (ID + date per line); plain ID lists always work.
@@ -381,6 +390,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 29: jobs carry `JobErrorKind` (`JobErrors.Classify`: purged manifest, depot access denied, disk full via ENOSPC/ERROR_DISK_FULL, network, Steam timeout, other) with a user-facing message; a purged manifest marks the matching history entry unavailable (`AppRecord.MarkUnavailable`); network/timeout failures resume automatically on the next sign-in. Token expiry was already covered (session lost re-opens sign-in). File logger survives `UnauthorizedAccessException`; unhandled AppDomain/task/UI exceptions are logged. Force strategy picker under Advanced in app detail (copy there is an explicit opt-in). Steam verify/update behavior documented in app detail and Help (Help also shows the log folder). New tests: error classification, queue error kind, history marking, file logger, forced copy/hardlink strategies, missing-file switch report. Parser, linking, heal, ACF patch and switcher revert were already covered.
 - 2026-10-08 - Step 30 added at the user's request: CI workflow (see step). UiSnap `Save` now checks that each render was written; `Program` returns 1 when any check failed.
 - 2026-10-08 - Step 30: first CI run executed the Linux `FICLONE` path (btrfs, xfs) and Windows block cloning on ReFS for the first time; all passed without code changes.
+- 2026-10-08 - Step 31 added at the user's request: macOS support without packaging. Keychain is the default token store with automatic file fallback instead of a settings toggle (user asked for an opinion; a toggle would only offer the weaker option). `SecretStore(path, interactive)`: the app and dvcli allow Keychain UI prompts, tests do not.
 
 ## Open questions
 

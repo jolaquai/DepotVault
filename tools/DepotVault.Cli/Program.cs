@@ -9,7 +9,7 @@ using SteamKit2;
 using CdnClient = SteamKit2.CDN.Client;
 
 var paths = AppPaths.CreateDefault();
-var secrets = new SecretStore(paths.Auth);
+var secrets = new SecretStore(paths.Auth, interactive: true);
 using var cts = new CancellationTokenSource();
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 await using var session = new SteamSession(secrets);

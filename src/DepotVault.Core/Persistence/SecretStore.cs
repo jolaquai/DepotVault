@@ -6,16 +6,41 @@ namespace DepotVault.Core.Persistence;
 
 public sealed record SteamCredentials(string AccountName, string RefreshToken);
 
-public sealed class SecretStore(string path)
+public sealed class SecretStore
 {
     private const uint Magic = 0x31415644;
     private const byte FlagDpapi = 1;
+    private const string KeychainService = "DepotVault";
     private static readonly byte[] Entropy = "DepotVault.auth"u8.ToArray();
+    private readonly bool _keychain;
+    private readonly bool _interactive;
 
-    public string Path { get; } = path;
+    public SecretStore(string path, bool interactive = false) : this(path, interactive, OperatingSystem.IsMacOS()) { }
+
+    internal SecretStore(string path, bool interactive, bool useKeychain)
+    {
+        Path = path;
+        _interactive = interactive;
+        _keychain = useKeychain && OperatingSystem.IsMacOS();
+    }
+
+    public string Path { get; }
+
+    private string KeychainAccount => System.IO.Path.GetFullPath(Path);
 
     public SteamCredentials Load()
     {
+        if (_keychain && OperatingSystem.IsMacOS() && MacKeychain.Read(KeychainService, KeychainAccount, _interactive, out var stored) == MacKeychain.Status.Ok)
+        {
+            try
+            {
+                return Decode(stored);
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(stored);
+            }
+        }
         if (!File.Exists(Path))
             return null;
         try
@@ -45,6 +70,13 @@ public sealed class SecretStore(string path)
     {
         ArgumentNullException.ThrowIfNull(credentials);
         var plain = Encode(credentials);
+        if (_keychain && OperatingSystem.IsMacOS() && MacKeychain.Write(KeychainService, KeychainAccount, plain, _interactive))
+        {
+            CryptographicOperations.ZeroMemory(plain);
+            if (File.Exists(Path))
+                File.Delete(Path);
+            return;
+        }
         byte flags = 0;
         byte[] body = plain;
         if (OperatingSystem.IsWindows())
@@ -79,6 +111,8 @@ public sealed class SecretStore(string path)
 
     public void Clear()
     {
+        if (_keychain && OperatingSystem.IsMacOS())
+            MacKeychain.Delete(KeychainService, KeychainAccount, _interactive);
         if (File.Exists(Path))
             File.Delete(Path);
     }

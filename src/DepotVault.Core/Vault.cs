@@ -18,7 +18,7 @@ public sealed class Vault : IAsyncDisposable, IDisposable
         Paths = paths;
         _log = logs.CreateLogger<Vault>();
         Settings = new SettingsStore(paths);
-        Secrets = new SecretStore(paths.Auth);
+        Secrets = new SecretStore(paths.Auth, interactive: true);
         Session = new SteamSession(Secrets);
         Apps = new AppRepository(paths);
         Library = new LibraryIndex(paths);

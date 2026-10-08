@@ -34,10 +34,32 @@ public class SecretStoreTests
         if (OperatingSystem.IsWindows())
             Assert.Skip("Unix file modes only");
         using var dir = new TempDir();
-        var store = new SecretStore(dir.Combine("auth.bin"));
+        var store = new SecretStore(dir.Combine("auth.bin"), interactive: false, useKeychain: false);
         store.Save(new SteamCredentials("a", "b"));
         if (!OperatingSystem.IsWindows())
             Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(store.Path));
+    }
+
+    [Fact]
+    public void KeychainHoldsTokenOnMac()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "Keychain is macOS-only");
+        using var dir = new TempDir();
+        var store = new SecretStore(dir.Combine("auth.bin"));
+        try
+        {
+            store.Save(new SteamCredentials("someaccount", "SECRETTOKENVALUE"));
+            if (Environment.GetEnvironmentVariable("DV_EXPECT_KEYCHAIN") == "1")
+                Assert.False(File.Exists(store.Path), "Token should be in the Keychain, not in the file");
+            Assert.Equal(new SteamCredentials("someaccount", "SECRETTOKENVALUE"), store.Load());
+            store.Save(new SteamCredentials("someaccount", "ROTATED"));
+            Assert.Equal("ROTATED", store.Load().RefreshToken);
+        }
+        finally
+        {
+            store.Clear();
+        }
+        Assert.Null(store.Load());
     }
 
     [Fact]

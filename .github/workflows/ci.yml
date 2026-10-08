@@ -32,6 +32,8 @@ jobs:
           - { name: linux-xfs, os: ubuntu-latest, fs: xfs, uisnap: false }
           - { name: windows-ntfs, os: windows-latest, fs: native, uisnap: true }
           - { name: windows-refs, os: windows-2025, fs: refs, uisnap: false }
+          - { name: macos-apfs, os: macos-latest, fs: native, uisnap: true }
+          - { name: macos-hfs, os: macos-latest, fs: hfs, uisnap: false }
     steps:
       - uses: actions/checkout@v5
 
@@ -76,6 +78,29 @@ jobs:
           "TMP=R:\tmp" >> $env:GITHUB_ENV
           "DV_EXPECT_REFLINK=1" >> $env:GITHUB_ENV
 
+      - name: Set up CI keychain (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          kc="$RUNNER_TEMP/dv-ci.keychain-db"
+          security create-keychain -p ci "$kc"
+          security set-keychain-settings "$kc"
+          security unlock-keychain -p ci "$kc"
+          security list-keychains -d user -s "$kc" $(security list-keychains -d user | tr -d '"')
+          security default-keychain -d user -s "$kc"
+          echo "DV_EXPECT_KEYCHAIN=1" >> "$GITHUB_ENV"
+
+      - name: Expect reflinks (APFS)
+        if: runner.os == 'macOS' && matrix.fs == 'native'
+        run: echo "DV_EXPECT_REFLINK=1" >> "$GITHUB_ENV"
+
+      - name: Mount HFS+ volume (macOS)
+        if: runner.os == 'macOS' && matrix.fs == 'hfs'
+        run: |
+          hdiutil create -size 2g -fs HFS+ -volname DVHFS "$RUNNER_TEMP/hfs.dmg"
+          hdiutil attach "$RUNNER_TEMP/hfs.dmg" -mountpoint /Volumes/DVHFS -nobrowse -owners on
+          mkdir /Volumes/DVHFS/tmp
+          echo "TMPDIR=/Volumes/DVHFS/tmp" >> "$GITHUB_ENV"
+
       - name: Restore
         run: dotnet restore DepotVault.slnx
 
@@ -90,11 +115,13 @@ jobs:
         shell: bash
         run: |
           scenarios="pages library-actions import settings"
-          if [ "$RUNNER_OS" = Linux ]; then scenarios="$scenarios switch-dialogs mutable"; fi
+          if [ "$RUNNER_OS" != Windows ]; then scenarios="$scenarios switch-dialogs mutable"; fi
+          t=""
+          if command -v timeout >/dev/null; then t="timeout 300"; fi
           rc=0
           for s in $scenarios; do
             echo "::group::$s"
-            timeout 300 dotnet run -c Release --no-build --project tools/DepotVault.UiSnap -- "uisnap/$s" "$RUNNER_TEMP/uisnap-data/$s" "$s" || { rc=1; echo "::error::UiSnap scenario $s failed"; }
+            $t dotnet run -c Release --no-build --project tools/DepotVault.UiSnap -- "uisnap/$s" "$RUNNER_TEMP/uisnap-data/$s" "$s" || { rc=1; echo "::error::UiSnap scenario $s failed"; }
             echo "::endgroup::"
           done
           exit $rc

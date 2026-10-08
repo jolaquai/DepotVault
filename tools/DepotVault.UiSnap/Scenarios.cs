@@ -15,7 +15,9 @@ internal static class Scenarios
         if (scenario is not ("switch-dialogs" or "mutable"))
             return;
         var home = Path.Combine(dataDir, "home");
-        var steamApps = Path.Combine(home, ".steam", "steam", "steamapps");
+        var steamApps = OperatingSystem.IsMacOS()
+            ? Path.Combine(home, "Library", "Application Support", "Steam", "steamapps")
+            : Path.Combine(home, ".steam", "steam", "steamapps");
         var install = Path.Combine(steamApps, "common", "Sample Game");
         Directory.CreateDirectory(install);
         File.WriteAllText(Path.Combine(install, "game.bin"), "installed");
