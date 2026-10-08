@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 4 - Secret store
+- **Current step:** 5 - Steam session + auth
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 9ce2e09 (parent of the step commit)
+- **Last synced commit:** a0b0307 (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -111,7 +111,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet test --solution DepotVault.slnx`
 - **Commit:** `add settings model`
 
-### 4. Secret store `[ ]`
+### 4. Secret store `[x]`
 
 - **Files:** `src/DepotVault.Core/Persistence/SecretStore.cs`, tests
 - **Do:** `auth.bin` read/write. Windows: `ProtectedData` CurrentUser. Linux: file mode 0600 via `File.SetUnixFileMode`. Store refresh token + account name.
