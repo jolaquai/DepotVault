@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
+using Avalonia.Threading;
 using DepotVault.App.ViewModels;
 using DepotVault.App.Views;
 using DepotVault.Core;
@@ -29,7 +30,7 @@ public partial class App : Application
             _services = ConfigureServices(AppPaths.CreateDefault());
             var vault = _services.GetRequiredService<Vault>();
             ApplyTheme(vault.Settings.Current.Theme);
-            vault.Settings.Changed += s => ApplyTheme(s.Theme);
+            vault.Settings.Changed += s => Dispatcher.UIThread.Post(() => ApplyTheme(s.Theme));
             vault.Start();
             var shell = _services.GetRequiredService<ShellViewModel>();
             desktop.MainWindow = new ShellWindow { DataContext = shell };
@@ -48,7 +49,7 @@ public partial class App : Application
         services.AddSingleton(sp => new Vault(paths, sp.GetRequiredService<ILoggerFactory>()));
         services.AddSingleton<DialogService>();
         services.AddSingleton<AppDialogs>();
-        services.AddSingleton<ISwitchPromptsFactory, DeclineSwitchPrompts>();
+        services.AddSingleton<ISwitchPromptsFactory, SwitchPrompts>();
         services.AddSingleton<ShellViewModel>();
         services.AddSingleton<LibraryViewModel>();
         services.AddSingleton<DownloadsViewModel>();

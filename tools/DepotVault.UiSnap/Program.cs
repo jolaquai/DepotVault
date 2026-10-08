@@ -14,6 +14,8 @@ Directory.CreateDirectory(outDir);
 
 AppBuilder.Configure<App>().UseSkia().WithInterFont().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).SetupWithoutStarting();
 
+var scenario = args.Length > 2 ? args[2] : "pages";
+Scenarios.Prepare(scenario, dataDir);
 var paths = new AppPaths(dataDir);
 Seed.Run(paths);
 using var services = App.ConfigureServices(paths);
@@ -23,7 +25,6 @@ var window = new ShellWindow { DataContext = shell, Width = 1200, Height = 780 }
 window.Show();
 Pump();
 
-var scenario = args.Length > 2 ? args[2] : "pages";
 switch (scenario)
 {
     case "pages":
@@ -47,6 +48,7 @@ void Pump()
 {
     for (var i = 0; i < 20; i++)
     {
+        Dispatcher.UIThread.Post(static () => { }, DispatcherPriority.Background);
         Dispatcher.UIThread.RunJobs();
         AvaloniaHeadlessPlatform.ForceRenderTimerTick();
         Thread.Sleep(10);

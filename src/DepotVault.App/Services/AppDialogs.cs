@@ -1,7 +1,9 @@
 using Avalonia.Controls;
 using DepotVault.App.ViewModels;
 using DepotVault.App.Views;
+using DepotVault.App.Views.Dialogs;
 using DepotVault.Core;
+using DepotVault.Core.SteamInstall;
 
 namespace DepotVault.App;
 
@@ -32,6 +34,8 @@ public sealed class AppDialogs(Vault vault, DialogService dialogs)
         }
         return vm.Added;
     }
+
+    public Task ShowSwitchReportAsync(SwitchReport report) => dialogs.ShowAsync<object>(new SwitchReportDialog { DataContext = new SwitchReportViewModel(report, dialogs) });
 
     public Task ShowTutorialAsync(Window owner = null) => dialogs.ShowAsync<object>(new TutorialDialog { DataContext = new TutorialViewModel(vault.Settings) }, owner);
 }

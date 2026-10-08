@@ -67,6 +67,7 @@ public sealed class Vault : IAsyncDisposable, IDisposable
     public ReadOnlyProtection ReadOnly { get; }
     public LibraryTargetResolver Resolver { get; }
     public DownloadQueue Queue { get; }
+    public Func<bool> IsSteamRunning { get; set; } = SteamLocator.IsSteamRunning;
 
     public event Action<uint, HealReport> HealCompleted;
 
@@ -158,7 +159,7 @@ public sealed class Vault : IAsyncDisposable, IDisposable
         return version;
     }
 
-    public Switcher CreateSwitcher(ISwitchPrompts prompts) => new(Library, Apps, Settings, Linker, prompts, new SessionManifestSource(Manifests, Paths), null, Index);
+    public Switcher CreateSwitcher(ISwitchPrompts prompts) => new(Library, Apps, Settings, Linker, prompts, new SessionManifestSource(Session, Manifests, Paths), () => IsSteamRunning(), Index);
 
     public async Task<HealReport> CheckAndHealAsync(uint appId, CancellationToken ct = default)
     {
@@ -224,9 +225,14 @@ public sealed class Vault : IAsyncDisposable, IDisposable
         await Session.DisposeAsync().ConfigureAwait(false);
     }
 
-    private sealed class SessionManifestSource(ManifestService manifests, AppPaths paths) : IInstalledManifestSource
+    private sealed class SessionManifestSource(SteamSession session, ManifestService manifests, AppPaths paths) : IInstalledManifestSource
     {
-        public Task<SteamKit2.DepotManifest> GetAsync(uint appId, uint depotId, ulong manifestId, CancellationToken ct) =>
-            manifests.GetAsync(appId, depotId, manifestId, Path.Combine(paths.Root, "manifest-cache", $"{depotId}_{manifestId}.manifest.bin"), ct);
+        public Task<SteamKit2.DepotManifest> GetAsync(uint appId, uint depotId, ulong manifestId, CancellationToken ct)
+        {
+            var path = Path.Combine(paths.Root, "manifest-cache", $"{depotId}_{manifestId}.manifest.bin");
+            if (session.State != SessionState.LoggedOn && !File.Exists(path))
+                throw new InvalidOperationException("Sign in to Steam first; the installed manifest is needed to take over the current install.");
+            return manifests.GetAsync(appId, depotId, manifestId, path, ct);
+        }
     }
 }

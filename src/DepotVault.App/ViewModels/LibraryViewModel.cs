@@ -139,6 +139,7 @@ public partial class LibraryViewModel : PageViewModel
         if (Detail is not { } d)
             return;
         d.ImportRequested += () => _ = ImportAsync(d);
+        d.SwitchFailed += r => _ = _dialogs.ShowSwitchReportAsync(r);
         d.OnActivated();
     }
 

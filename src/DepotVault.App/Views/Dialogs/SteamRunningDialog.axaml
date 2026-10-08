@@ -1,0 +1,20 @@
+<v:DialogWindow xmlns="https://github.com/avaloniaui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:v="using:DepotVault.App.Views"
+                xmlns:vm="using:DepotVault.App.ViewModels"
+                x:Class="DepotVault.App.Views.Dialogs.SteamRunningDialog"
+                x:DataType="vm:SteamRunningViewModel"
+                Title="Steam is running" Width="460" SizeToContent="Height" CanResize="False"
+                WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="20" Spacing="12">
+    <TextBlock Classes="h2" Text="Close Steam to continue" />
+    <TextBlock TextWrapping="Wrap"
+               Text="Steam must not be running while DepotVault switches a game's files. Exit Steam completely (Steam menu, Exit) and the switch continues on its own. DepotVault never closes Steam for you." />
+    <TextBlock Classes="muted" Text="{Binding StatusText}" TextWrapping="Wrap" />
+    <ProgressBar IsIndeterminate="True" />
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Content="Check again" Command="{Binding CheckNowCommand}" />
+      <Button Content="Cancel switch" Command="{Binding CancelCommand}" IsCancel="True" />
+    </StackPanel>
+  </StackPanel>
+</v:DialogWindow>

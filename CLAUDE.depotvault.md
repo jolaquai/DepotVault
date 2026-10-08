@@ -40,8 +40,7 @@ Written 2026-10-08 when work moved from the user's Windows machine to a cloud se
 
 **Open threads for the remaining steps:**
 - Step 22 still needs one interactive check by the user on their machine (sign in through the dialog via password and via QR scan). Leave it `[~]`.
-- `AppDetailViewModel` raises `MutableReviewRequested` (step 28) and `SwitchFailed` (step 27); nothing subscribes yet. Wire them like `ImportRequested`: subscribed in `LibraryViewModel.OnSelectedAppChanged`, dialogs created by the `AppDialogs` coordinator (`Services/AppDialogs.cs`).
-- Step 27 replaces the placeholder `DeclineSwitchPrompts` (`src/DepotVault.App/Services/SwitchPrompts.cs`, registered in `App.axaml.cs`) with real dialogs implementing `ISwitchPrompts` (Steam-running wait, copy consent with remember-my-choice).
+- `AppDetailViewModel` raises `MutableReviewRequested` (step 28); nothing subscribes yet. Wire it like `ImportRequested`/`SwitchFailed`: subscribed in `LibraryViewModel.OnSelectedAppChanged`, dialog created by the `AppDialogs` coordinator (`Services/AppDialogs.cs`). New dialogs derive from `Views/DialogWindow` with a VM implementing `IDialogViewModel`. Note `SwitchAsync` raises the review request and then continues without waiting; step 28 must await the dialog before switching on first review.
 - Step 25 tutorial screenshots: deferred to the user (local). `TutorialViewModel` loads `Assets/tutorial/step1.png`..`step4.png` if present; just drop the files in.
 - Settings UI (step 26) reloads from `Vault.Settings.Current` on page activation, so a remembered copy choice written by the step 27 dialog shows up there without extra wiring.
 - Step 29: when a job fails with `ManifestUnavailableException`, mark the matching `AppRecord.History` entry `Unavailable` (jobs only carry `Error` text today; add an error kind). `AppRecord.ForceStrategy` already works in the switcher and needs UI.
@@ -50,10 +49,10 @@ Written 2026-10-08 when work moved from the user's Windows machine to a cloud se
 ## Status
 
 - **State:** in-progress
-- **Current step:** 27 - Copy-fallback, Steam-running, switch-failure dialogs (step 22 interactive check pending)
+- **Current step:** 28 - Mutable-file review dialog (step 22 interactive check pending)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** 8ceedd0 (parent of HEAD)
+- **Last synced commit:** 70dd80b (parent of HEAD)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -314,11 +313,12 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Progress:** verified with `UiSnap settings`: page renders, every setting changed through the VM, removing a root that still holds versions is refused, adding/removing an empty root works, read-only toggle runs over the library, a fresh `SettingsStore` reloads all changed values.
 - **Commit:** `add settings screen`
 
-### 27. Copy-fallback, Steam-running, switch-failure dialogs `[ ]`
+### 27. Copy-fallback, Steam-running, switch-failure dialogs `[x]`
 
-- **Files:** `src/DepotVault.App/Views/Dialogs/*`
+- **Files:** `src/DepotVault.App/Views/Dialogs/*`, `Views/DialogWindow.cs`, `ViewModels/SteamRunningViewModel.cs`, `CopyConsentViewModel.cs`, `SwitchReportViewModel.cs`, `IDialogViewModel.cs`, `Services/SwitchPrompts.cs`
 - **Do:** copy-fallback question with "remember my choice" (writes `CopyFallback`), Steam-running prompt (close Steam; never kill), switch failure report (failing paths + reasons).
 - **Verify:** run app, trigger each dialog via switcher test hooks.
+- **Progress:** verified with `UiSnap switch-dialogs` (fake Steam install via `HOME` override, `Vault.IsSteamRunning` hook): real switch from app detail showed the Steam-running dialog, continued once "Steam" exited, failed offline adoption and opened the report dialog; with a cached installed manifest the same switch succeeded (Linux dir symlink) and revert restored the original dir; copy consent returned allow+remember; cancelling the Steam wait returned false.
 - **Commit:** `add switch dialogs`
 
 ### 28. Mutable-file review dialog `[ ]`
@@ -367,6 +367,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - 2026-10-08 - Step 24a added: first Linux run. Version delete now clears read-only on all platforms (Linux kept the shared inode read-only for the surviving sibling); scanner test looked up manifest names with Windows separators. Linux `FICLONE` path still unexecuted (no reflink-capable volume in the cloud).
 - 2026-10-08 - Step 25: tutorial ships text-only (user's call: no SteamDB screenshots from the cloud; they add `Assets/tutorial/step1..4.png` locally, loaded automatically when present). Dialogs are created by a new `AppDialogs` coordinator (single import dialog at a time; tutorial auto-opens over the import dialog unless "don't show again" is set). Import dialog takes a depot from the pasted SteamDB URL, the app's depot list, or a typed depot ID; rows can be unticked. Library empty state and Help page link to the tutorial. UiSnap scenario `import` added.
 - 2026-10-08 - Step 26: settings apply immediately (no Save button). Toggling read-only protection applies/removes it across all versions (`Vault.ApplyReadOnlyProtection`); toggling ACF lock re-locks/unlocks the ACF of every switched (non-adopted active) app (`Vault.ApplyAcfLock`). A library root can only be removed while no version lives in it (`Vault.RemoveRoot`); Steam-library suggestions are offered with one-click add. "Show walkthrough when importing" is the inverse of `TutorialDontShowAgain`. UiSnap `Seed` now registers its root in `settings.json` like a real download would; UiSnap scenario `settings` added.
+- 2026-10-08 - Step 27: `SwitchPrompts` (real `ISwitchPrompts`, marshals to the UI thread since the switcher calls prompts after `ConfigureAwait(false)`) replaces `DeclineSwitchPrompts`. Steam-running dialog polls every second off the UI thread and closes itself when Steam exits. `Vault.IsSteamRunning` is the switcher test hook. Fixes found on the way: `Settings.Changed` theme handler now posts to the UI thread (a remembered copy choice saves settings from a pool thread); installed-manifest source fails fast when not signed in and the manifest is not cached (an offline SteamKit job timed out as a cancellation, so no report was shown). `DialogService.Showing` lets UiSnap capture dialogs; UiSnap `Pump` posts a no-op so headless `DispatcherTimer`s get promoted. First end-to-end run of the Linux switch path (dir symlink + revert) passed.
 
 ## Open questions
 

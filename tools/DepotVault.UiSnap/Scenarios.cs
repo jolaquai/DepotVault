@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using DepotVault.App;
 using DepotVault.App.ViewModels;
 using DepotVault.App.Views;
+using DepotVault.App.Views.Dialogs;
 using DepotVault.Core;
 using DepotVault.Core.Download;
 using DepotVault.Core.Steam;
@@ -9,6 +10,37 @@ using Microsoft.Extensions.DependencyInjection;
 
 internal static class Scenarios
 {
+    public static void Prepare(string scenario, string dataDir)
+    {
+        if (scenario != "switch-dialogs")
+            return;
+        var home = Path.Combine(dataDir, "home");
+        var steamApps = Path.Combine(home, ".steam", "steam", "steamapps");
+        var install = Path.Combine(steamApps, "common", "Sample Game");
+        Directory.CreateDirectory(install);
+        File.WriteAllText(Path.Combine(install, "game.bin"), "installed");
+        File.WriteAllText(Path.Combine(steamApps, "appmanifest_480000.acf"), """
+            "AppState"
+            {
+            	"appid"		"480000"
+            	"name"		"Sample Game"
+            	"installdir"		"Sample Game"
+            	"buildid"		"9876543"
+            	"StateFlags"		"4"
+            	"AutoUpdateBehavior"		"0"
+            	"InstalledDepots"
+            	{
+            		"480001"
+            		{
+            			"manifest"		"1234567890123456789"
+            			"size"		"9"
+            		}
+            	}
+            }
+            """);
+        Environment.SetEnvironmentVariable("HOME", home);
+    }
+
     public static void Run(string name, IServiceProvider services, ShellViewModel shell, Window window, Action<TopLevel, string> save, Action pump)
     {
         var vault = services.GetRequiredService<Vault>();
@@ -179,6 +211,69 @@ internal static class Scenarios
                 using var reloaded = new DepotVault.Core.Persistence.SettingsStore(vault.Paths);
                 var c = reloaded.Current;
                 Console.WriteLine($"Persisted: jobs={c.MaxConcurrentJobs} chunks={c.MaxConcurrentChunks} bw={c.BandwidthLimitBytesPerSecond} dedupe={c.DedupeEnabled} globs=[{string.Join("|", c.GlobalExclusionGlobs)}] copy={c.CopyFallback} acf={c.AcfLock} integrity={c.IntegrityCheckOnStartup} dontShow={c.TutorialDontShowAgain} theme={c.Theme} ro={c.ReadOnlyProtection} roots=[{string.Join("|", c.LibraryRoots)}]");
+                break;
+            }
+            case "switch-dialogs":
+            {
+                var dialogs = services.GetRequiredService<DialogService>();
+                Window shown = null;
+                dialogs.Showing += w => shown = w;
+                var running = true;
+                vault.IsSteamRunning = () => running;
+                var lib = services.GetRequiredService<LibraryViewModel>();
+                shell.CurrentPage = lib;
+                lib.OnActivated();
+                pump();
+                var d = lib.Detail;
+                Console.WriteLine($"Install: {d.InstallText}");
+                d.SelectedVersion = d.Versions.First(v => !v.IsActive && v.IsComplete);
+                d.SwitchCommand.Execute(null);
+                Wait(() => shown is SteamRunningDialog, pump, 10);
+                save(shown, "steam-running");
+                running = false;
+                Wait(() => shown is SwitchReportDialog || !d.IsBusy, pump, 60);
+                Console.WriteLine($"Switch: {d.StatusText} (steam dialog visible={shown.IsVisible}, {shown.GetType().Name}, busy={d.IsBusy})");
+                if (shown is SwitchReportDialog report)
+                {
+                    save(report, "switch-report");
+                    var rvm = (SwitchReportViewModel)report.DataContext;
+                    foreach (var f in rvm.Failures)
+                        Console.WriteLine($"  {f.Path}: {f.Reason}");
+                    rvm.CloseCommand.Execute(null);
+                    pump();
+                }
+
+                var cache = Path.Combine(vault.Paths.Root, "manifest-cache", "480001_1234567890123456789.manifest.bin");
+                Directory.CreateDirectory(Path.GetDirectoryName(cache));
+                var installed = new SteamKit2.DepotManifest { DepotID = 480001, ManifestGID = 1234567890123456789, Files = [], CreationTime = DateTime.UtcNow };
+                installed.Files.Add(new SteamKit2.DepotManifest.FileData("game.bin", new byte[20], 0, 9, System.Security.Cryptography.SHA1.HashData("installed"u8), null, false, 0));
+                installed.SaveToFile(cache);
+                var installDir = d.InstallText[(d.InstallText.IndexOf(" at ") + 4)..];
+                d.SwitchCommand.Execute(null);
+                Wait(() => !d.IsBusy, pump, 30);
+                var link = new DirectoryInfo(installDir).LinkTarget;
+                Console.WriteLine($"Switch with cached manifest: {d.StatusText}; install link -> {link}; active={vault.Library.GetApp(480000).ActiveVersionId}, versions={d.Versions.Count}");
+                save(window, "switched");
+                d.RevertCommand.Execute(null);
+                Wait(() => !d.IsBusy, pump, 30);
+                Console.WriteLine($"Revert: {d.StatusText}; link={new DirectoryInfo(installDir).LinkTarget ?? "none"}; game.bin={File.Exists(Path.Combine(installDir, "game.bin"))}");
+
+                var prompts = services.GetRequiredService<ISwitchPromptsFactory>().Create();
+                var ask = prompts.AskCopyAsync(42, 3L << 30, default);
+                Wait(() => shown is CopyConsentDialog, pump, 5);
+                save(shown, "copy-consent");
+                var cvm = (CopyConsentViewModel)shown.DataContext;
+                cvm.Remember = true;
+                cvm.CopyCommand.Execute(null);
+                Wait(() => ask.IsCompleted, pump, 5);
+                Console.WriteLine($"Copy consent: {ask.Result}");
+
+                running = true;
+                var waitExit = prompts.WaitForSteamExitAsync(default);
+                Wait(() => shown is SteamRunningDialog && shown.IsVisible, pump, 5);
+                ((SteamRunningViewModel)shown.DataContext).CancelCommand.Execute(null);
+                Wait(() => waitExit.IsCompleted, pump, 5);
+                Console.WriteLine($"Steam wait after cancel: {waitExit.Result}");
                 break;
             }
             default:

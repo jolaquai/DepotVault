@@ -10,8 +10,11 @@ public sealed class DialogService
 {
     public static Window MainWindow => (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
 
+    internal event Action<Window> Showing;
+
     public Task<T> ShowAsync<T>(Window dialog, Window owner = null)
     {
+        Showing?.Invoke(dialog);
         owner ??= MainWindow;
         if (owner is null || !owner.IsVisible)
         {

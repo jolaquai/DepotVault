@@ -1,0 +1,36 @@
+<v:DialogWindow xmlns="https://github.com/avaloniaui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:v="using:DepotVault.App.Views"
+                xmlns:vm="using:DepotVault.App.ViewModels"
+                xmlns:si="using:DepotVault.Core.SteamInstall"
+                x:Class="DepotVault.App.Views.Dialogs.SwitchReportDialog"
+                x:DataType="vm:SwitchReportViewModel"
+                Title="Switch problems" Width="760" Height="520" MinWidth="480" MinHeight="320"
+                WindowStartupLocation="CenterOwner">
+  <DockPanel Margin="20">
+    <TextBlock DockPanel.Dock="Top" Classes="h2" Text="The switch did not finish cleanly" Margin="0,0,0,8" />
+    <TextBlock DockPanel.Dock="Top" Text="{Binding Summary}" TextWrapping="Wrap" Margin="0,0,0,8" />
+    <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+      <TextBlock Grid.Column="0" Classes="muted" Text="{Binding StatusText}" VerticalAlignment="Center" />
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+        <Button Content="Copy details" Command="{Binding CopyCommand}" />
+        <Button Content="Open staging folder" Command="{Binding OpenStagingCommand}" IsVisible="{Binding HasStaging}" />
+        <Button Content="Close" Command="{Binding CloseCommand}" IsCancel="True" IsDefault="True" Classes="accent" />
+      </StackPanel>
+    </Grid>
+    <Border BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1" CornerRadius="4">
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+        <ItemsControl ItemsSource="{Binding Failures}" Margin="10,6">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="si:SwitchFailure">
+              <StackPanel Spacing="2" Margin="0,6">
+                <SelectableTextBlock Text="{Binding Reason}" TextWrapping="Wrap" />
+                <SelectableTextBlock Opacity="0.7" FontSize="12" Text="{Binding Path}" TextWrapping="Wrap" />
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Border>
+  </DockPanel>
+</v:DialogWindow>
