@@ -24,10 +24,10 @@ Step states: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked, `[
 ## Status
 
 - **State:** in-progress
-- **Current step:** 2 - Persistence primitives
+- **Current step:** 3 - Settings model
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** ca7e6f9 (parent of the step commit)
+- **Last synced commit:** f5a92e3 (parent of the step commit)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -97,7 +97,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Verify:** `dotnet build DepotVault.slnx` and `dotnet test --solution DepotVault.slnx`
 - **Commit:** `scaffold solution`
 
-### 2. Persistence primitives `[ ]`
+### 2. Persistence primitives `[x]`
 
 - **Files:** `src/DepotVault.Core/Persistence/JsonContext.cs`, `AtomicJsonStore.cs`, `AppPaths.cs`, tests
 - **Do:** `AppPaths` resolves the root (overridable for tests). `AtomicJsonStore<T>`: serialize UTF-8 via source-gen context, write `*.tmp`, flush, `File.Move(tmp, path, overwrite: true)`; debounced save (500 ms) option; schema version + migration hook interface. Tests: round-trip, crash-leftover tmp ignored, debounce coalesces.
@@ -306,6 +306,7 @@ Every root JSON object carries a schema version field with a migration hook.
 <Append-only. `YYYY-MM-DD` - what changed vs the original plan and why.>
 
 - 2026-10-08 - Solution is `DepotVault.slnx` (SDK 11 default format), all verify commands updated. SDK 11.0.100-preview.6; Microsoft.Extensions.* and ProtectedData pinned to the matching preview.6 packages. Avalonia 12.1.3, SteamKit2 3.4.0, xunit.v3 4.0.1. Added root `global.json` with MTP test runner.
+- 2026-10-08 - Step 2: `JsonContext` deferred to step 3 (an empty source-gen context does not compile). Per-depot manifests stored as `versions/<versionId>/<depotId>.manifest.bin` since a version can merge several depots.
 
 ## Open questions
 
