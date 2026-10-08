@@ -39,7 +39,7 @@ Written 2026-10-08 when work moved from the user's Windows machine to a cloud se
 - Line endings: CRLF for everything except `*.sh`, Dockerfiles, git hooks (`.gitattributes` has `* text=auto eol=crlf`). Files written by shell redirection or generators must be checked.
 
 **Open threads for the remaining steps:**
-- Step 22 still needs one interactive check by the user on their machine (sign in through the dialog via password and via QR scan). Leave it `[~]`.
+- Step 22 still needs one interactive check by the user on their machine: sign in through the dialog via password (QR scan verified). Leave it `[~]`.
 - Dialogs: `AppDetailViewModel` calls the `AppDialogs` coordinator (`Services/AppDialogs.cs`) directly (import, mutable review, switch report); new dialogs derive from `Views/DialogWindow` with a VM implementing `IDialogViewModel`.
 - Step 25 tutorial screenshots: deferred to the user (local). `TutorialViewModel` loads `Assets/tutorial/step1.png`..`step4.png` if present; just drop the files in.
 - Settings UI (step 26) reloads from `Vault.Settings.Current` on page activation, so a remembered copy choice written by the step 27 dialog shows up there without extra wiring.
@@ -47,11 +47,11 @@ Written 2026-10-08 when work moved from the user's Windows machine to a cloud se
 
 ## Status
 
-- **State:** implemented; open items are user-side only (step 22 interactive sign-in check, step 25 tutorial screenshots)
+- **State:** implemented; open items are user-side only (step 22 password sign-in check, step 25 tutorial screenshots)
 - **Current step:** none (all steps done except the step 22 interactive check)
 - **Branch:** main
 - **Base commit:** a0fe4d9
-- **Last synced commit:** c0263f1 (parent of HEAD)
+- **Last synced commit:** 8e14d6e (parent of HEAD)
 - **Last updated:** 2026-10-08
 
 ## Goal
@@ -272,7 +272,7 @@ Every root JSON object carries a schema version field with a migration hook.
 - **Files:** `src/DepotVault.App/Views/LoginDialog.axaml`, `ViewModels/LoginViewModel.cs`
 - **Do:** tabs Credentials / QR (render challenge URL as QR image, refresh on change), Guard prompt (email/TOTP/mobile confirm), "remember me", auto token login on start.
 - **Verify:** run app, log in via both flows, restart auto-logs in.
-- **Progress:** dialog done (Account tab, QR tab with live Steam challenge URL rendered via QRCoder, inline Steam Guard prompt for email/device code/mobile confirm, remember-me). Verified headless: `UiSnap login` renders all states and a real QR; `UiSnap autologin` signs in from a saved token and the shell shows the account. Pending (user, interactive): sign in through the dialog via password and via QR scan.
+- **Progress:** dialog done (Account tab, QR tab with live Steam challenge URL rendered via QRCoder, inline Steam Guard prompt for email/device code/mobile confirm, remember-me). Verified headless: `UiSnap login` renders all states and a real QR; `UiSnap autologin` signs in from a saved token and the shell shows the account. QR scan sign-in through the dialog verified by the user on their machine (2026-10-08). Pending (user, interactive): sign in via password.
 - **Commit:** `add login dialog`
 
 ### 23. Library screen + app detail `[x]`
